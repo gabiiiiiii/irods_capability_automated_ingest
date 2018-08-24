@@ -237,7 +237,7 @@ def sync_data_from_file(target, path, hdlr, logger, content, **options):
     else:
         hdlr_mod = None
 
-    session = irods_session(hdlr_mod, meta, **options)
+    session = irods_session(hdlr_mod, target, path, **options)
 
     if session.data_objects.exists(target):
         exists = True
@@ -310,7 +310,7 @@ def sync_data_from_dir(target, path, hdlr, logger, content, **options):
     else:
         hdlr_mod = None
 
-    session = irods_session(hdlr_mod, meta, **options)
+    session = irods_session(hdlr_mod, target, path, **options)
 
     exists = session.collections.exists(target)
 
