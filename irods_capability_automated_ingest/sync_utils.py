@@ -1,6 +1,6 @@
 from os.path import dirname, basename
 from irods.models import Collection, DataObject
-from redis import StrictRedis
+from redis import StrictRedis, ConnectionPool
 from irods_capability_automated_ingest import sync_logging
 from rq import Queue, requeue_job
 from rq.handlers import move_to_failed_queue
@@ -18,9 +18,22 @@ def size(session, path, replica_num = None, resc_name = None):
     for row in session.query(DataObject.size).filter(*args):
         return int(row[DataObject.size])
 
+
+redis_connection_pool_map = {}
+
+
 def get_redis(config):
     redis_config = config["redis"]
-    return StrictRedis(host=redis_config["host"], port=redis_config["port"], db=redis_config["db"])
+    host = redis_config["host"]
+    port = redis_config["port"]
+    db = redis_config["db"]
+    url = "redis://" + host + ":" + str(port) + "/" + str(db)
+    pool = redis_connection_pool_map.get(url)
+    if pool is None:
+        pool = ConnectionPool(host=host, port=port, db=db)
+        redis_connection_pool_map[url] = pool
+
+    return StrictRedis(connection_pool=pool)
 
 
 # based on https://gist.github.com/spjwebster/6521272
