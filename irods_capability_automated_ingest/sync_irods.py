@@ -3,10 +3,12 @@ from os.path import dirname, getsize, getmtime, basename
 from irods.session import iRODSSession
 from irods.models import Resource, DataObject, Collection
 import importlib
-from irods_capability_automated_ingest.sync_utils import size
+from irods_capability_automated_ingest.sync_utils import size, get_redis
 from irods_capability_automated_ingest import sync_logging
 from irods_capability_automated_ingest.utils import Operation
+import redis_lock
 import irods.keywords as kw
+from rq import get_current_job
 import json
 
 
@@ -35,22 +37,19 @@ def child_of(session, child_resc_name, resc_name):
             child_resc_name = parent_resc_name
         return False
 
-'''
 def create_dirs(hdlr_mod, logger, session, target, path, **options):
     if target.startswith("/"):
-        if not session.collections.exists(target):
+        job = get_current_job()
+        config = job.meta["config"]
+        r = get_redis(config)
+        with redis_lock.Lock(r, "create_dirs:path"):
             if target == "/":
                 raise Exception("create_dirs: Cannot create root")
             create_dirs(hdlr_mod, logger, session, dirname(target), dirname(path), **options)
 
-            def ccfunc(hdlr_mod, session, target, path, **options):
-                logger.info("creating collection " + target)
-                session.collections.create(target)
-
-            call(hdlr_mod, "on_coll_create", ccfunc, logger, hdlr_mod, session, target, path, **options)
+            call(hdlr_mod, "on_coll_create", create_dir, logger, hdlr_mod, session, target, path, **options)
     else:
         raise Exception("create_dirs: relative path")
-'''
 
 
 def create_dir(hdlr_mod, logger, session, target, path, **options):
@@ -224,7 +223,7 @@ def irods_session(hdlr_mod, target, path, **options):
 
     sess = irods_session_map.get(key)
 
-    if sess is not None:
+    if sess is None:
         sess = iRODSSession(**kwargs)
         irods_session_map[key] = sess
 
@@ -281,6 +280,9 @@ def sync_data_from_file(target, path, hdlr, logger, content, **options):
         sync = op in [Operation.PUT_SYNC, Operation.PUT_APPEND]
 
         if not exists:
+
+            create_dirs(hdlr_mod, logger, session, dirname(target), dirname(path), **options)
+
             if put:
                 call(hdlr_mod, "on_data_obj_create", upload_file, logger, hdlr_mod, logger, session, target, path, **options)
             else:
@@ -326,7 +328,7 @@ def sync_data_from_dir(target, path, hdlr, logger, content, **options):
             call(hdlr_mod, "on_collection_modify", no_op, logger, hdlr_mod, logger, session, target, path, **options)
     else:
         if not exists:
-            call(hdlr_mod, "on_collection_create", create_dir, logger, hdlr_mod, logger, session, target, path, **options)
+            create_dirs(hdlr_mod, logger, session, target, path, **options)
         else:
             call(hdlr_mod, "on_collection_modify", sync_dir_meta, logger, hdlr_mod, logger, session, target, path, **options)
 

@@ -6,8 +6,8 @@ from os.path import isfile, join, getmtime, realpath, relpath, getctime
 from datetime import datetime
 from rq_scheduler import Scheduler
 import redis_lock
-from irods_capability_automated_ingest import sync_logging, sync_irods
-from irods_capability_automated_ingest.sync_utils import get_redis
+from . import sync_logging, sync_irods
+from .sync_utils import get_redis
 import time
 from uuid import uuid1
 
@@ -92,7 +92,7 @@ def sync_file():
     try:
         logger.info("synchronizing file. path = " + path)
         r = get_redis(config)
-        with redis_lock.Lock(r, path):
+        with redis_lock.Lock(r, "create_dirs:path"):
             t = datetime.now().timestamp()
             if not all:
                 sync_time = get_with_key(r, sync_time_key, path, float)
@@ -134,7 +134,7 @@ def sync_dir():
     try:
         logger.info("synchronizing dir. path = " + path)
         r = get_redis(config)
-        with redis_lock.Lock(r, path):
+        with redis_lock.Lock(r, "create_dirs:path"):
             t = datetime.now().timestamp()
             if not all:
                 sync_time = get_with_key(r, sync_time_key, path, float)
