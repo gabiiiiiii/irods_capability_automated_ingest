@@ -281,7 +281,7 @@ def sync_data_from_file(target, path, hdlr, logger, content, **options):
 
         if not exists:
 
-            create_dirs(hdlr_mod, logger, session, dirname(target), dirname(path), **options)
+            #create_dirs(hdlr_mod, logger, session, dirname(target), dirname(path), **options)
 
             if put:
                 call(hdlr_mod, "on_data_obj_create", upload_file, logger, hdlr_mod, logger, session, target, path, **options)
@@ -328,7 +328,8 @@ def sync_data_from_dir(target, path, hdlr, logger, content, **options):
             call(hdlr_mod, "on_collection_modify", no_op, logger, hdlr_mod, logger, session, target, path, **options)
     else:
         if not exists:
-            create_dirs(hdlr_mod, logger, session, target, path, **options)
+            #create_dirs(hdlr_mod, logger, session, target, path, **options)
+            call(hdlr_mod, "on_collection_create", create_dir, logger, hdlr_mod, logger, session, target, path, **options)
         else:
             call(hdlr_mod, "on_collection_modify", sync_dir_meta, logger, hdlr_mod, logger, session, target, path, **options)
 

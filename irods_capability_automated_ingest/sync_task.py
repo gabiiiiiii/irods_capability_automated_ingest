@@ -92,7 +92,8 @@ def sync_file():
     try:
         logger.info("synchronizing file. path = " + path)
         r = get_redis(config)
-        with redis_lock.Lock(r, "create_dirs:path"):
+        #with redis_lock.Lock(r, "create_dirs:path"):
+        with redis_lock.Lock(r, path):
             t = datetime.now().timestamp()
             if not all:
                 sync_time = get_with_key(r, sync_time_key, path, float)
@@ -134,7 +135,8 @@ def sync_dir():
     try:
         logger.info("synchronizing dir. path = " + path)
         r = get_redis(config)
-        with redis_lock.Lock(r, "create_dirs:path"):
+        #with redis_lock.Lock(r, "create_dirs:path"):
+        with redis_lock.Lock(r, path):
             t = datetime.now().timestamp()
             if not all:
                 sync_time = get_with_key(r, sync_time_key, path, float)
