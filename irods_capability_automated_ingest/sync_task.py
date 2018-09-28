@@ -371,8 +371,10 @@ def sync_path(self, meta):
         raise self.retry(max_retries=max_retries, exc=err, countdown=retry_countdown)
 
 #@app.task(bind=True, base=IrodsTask)
+#def sync_dir(self, meta):
+    #sync_entry(self, meta, "dir", sync_irods.sync_data_from_dir, sync_irods.sync_metadata_from_dir)
 def sync_dir(meta):
-    sync_entry(self, meta, "dir", sync_irods.sync_data_from_dir, sync_irods.sync_metadata_from_dir)
+    sync_entry(meta, "dir", sync_irods.sync_data_from_dir, sync_irods.sync_metadata_from_dir)
 
 @app.task(bind=True, base=IrodsTask)
 def sync_files(self, _meta):
@@ -387,9 +389,18 @@ def sync_files(self, _meta):
         meta["ctime"] = obj_stats.get('ctime')
         meta["size"] = obj_stats.get('size')
         meta['task'] = 'sync_file'
-        sync_entry(self, meta, "file", sync_irods.sync_data_from_file, sync_irods.sync_metadata_from_file)
 
-def sync_entry(self, meta, cls, datafunc, metafunc):
+        logger = sync_logging.get_sync_logger(logging_config)
+        max_retries = get_max_retries(logger, meta)
+        try:
+            sync_entry(meta, "file", sync_irods.sync_data_from_file, sync_irods.sync_metadata_from_file)
+        except Exception as err:
+            retry_countdown = get_delay(logger, meta, self.request.retries + 1)
+            raise self.retry(max_retries=max_retries, exc=err, countdown=retry_countdown)
+        #sync_entry(self, meta, "file", sync_irods.sync_data_from_file, sync_irods.sync_metadata_from_file)
+
+#def sync_entry(self, meta, cls, datafunc, metafunc):
+def sync_entry(meta, cls, datafunc, metafunc):
     hdlr = meta["event_handler"]
     task = meta["task"]
     path = meta["path"]
@@ -428,6 +439,7 @@ def sync_entry(self, meta, cls, datafunc, metafunc):
         meta['unicode_error_filename'] = unicode_error_filename
 
         sync_key = file_unique_id + ":" + target
+
     try:
         lock = redis_lock.Lock(r, "sync_" + cls + ":"+sync_key)
         lock.acquire()
@@ -474,9 +486,6 @@ def sync_entry(self, meta, cls, datafunc, metafunc):
                 metafunc(meta2, logger)
                 logger.info("succeeded_metadata_only", task=task, path=path)
             set_with_key(r, sync_time_key, sync_key, str(t))
-    except Exception as err:
-        retry_countdown = get_delay(logger, meta, self.request.retries + 1)
-        raise self.retry(max_retries=max_retries, exc=err, countdown=retry_countdown)
     finally:
         if lock is not None:
             lock.release()
