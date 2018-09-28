@@ -390,6 +390,8 @@ def sync_files(self, _meta):
         meta["size"] = obj_stats.get('size')
         meta['task'] = 'sync_file'
 
+        config = meta["config"]
+        logging_config = config["log"]
         logger = sync_logging.get_sync_logger(logging_config)
         max_retries = get_max_retries(logger, meta)
         try:
