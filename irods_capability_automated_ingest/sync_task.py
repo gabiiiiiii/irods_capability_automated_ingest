@@ -297,7 +297,7 @@ def sync_path(self, meta):
 
         else:
             # Potential race condition between creating collection and processing underlying data objects
-            self.sync_dir(meta)
+            sync_dir(meta)
             #async(r, logger, sync_dir, meta, file_q_name)
             itr = scandir(path)
 
@@ -370,8 +370,8 @@ def sync_path(self, meta):
         retry_countdown = get_delay(logger, meta, self.request.retries + 1)
         raise self.retry(max_retries=max_retries, exc=err, countdown=retry_countdown)
 
-@app.task(bind=True, base=IrodsTask)
-def sync_dir(self, meta):
+#@app.task(bind=True, base=IrodsTask)
+def sync_dir(meta):
     sync_entry(self, meta, "dir", sync_irods.sync_data_from_dir, sync_irods.sync_metadata_from_dir)
 
 @app.task(bind=True, base=IrodsTask)
