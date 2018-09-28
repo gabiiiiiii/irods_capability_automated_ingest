@@ -296,7 +296,9 @@ def sync_path(self, meta):
             itr = client.list_objects_v2(bucket_name, prefix=prefix, recursive=True)
 
         else:
-            async(r, logger, sync_dir, meta, file_q_name)
+            # Potential race condition between creating collection and processing underlying data objects
+            self.sync_dir(meta)
+            #async(r, logger, sync_dir, meta, file_q_name)
             itr = scandir(path)
 
         if meta["profile"]:

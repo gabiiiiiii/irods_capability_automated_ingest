@@ -35,17 +35,16 @@ def create_dirs(hdlr_mod, logger, session, meta, **options):
     config = meta["config"]
     if target.startswith("/"):
         r = get_redis(config)
-        if not session.collections.exists(target):
+        if not session.collections.exists(target) and not session.data_objects.exists(target):
             with redis_lock.Lock(r, "create_dirs:" + path):
-                if not session.collections.exists(target):
-                    if target == "/":
-                        raise Exception("create_dirs: Cannot create root")
-                    meta2 = meta.copy()
-                    meta2["target"] = dirname(target)
-                    meta2["path"] = dirname(path)
-                    create_dirs(hdlr_mod, logger, session, meta2, **options)
+                if target == "/":
+                    raise Exception("create_dirs: Cannot create root")
+                meta2 = meta.copy()
+                meta2["target"] = dirname(target)
+                meta2["path"] = dirname(path)
+                create_dirs(hdlr_mod, logger, session, meta2, **options)
 
-                    call(hdlr_mod, "on_coll_create", create_dir, logger, hdlr_mod, logger, session, meta, **options)
+                call(hdlr_mod, "on_coll_create", create_dir, logger, hdlr_mod, logger, session, meta, **options)
     else:
         raise Exception("create_dirs: relative path; target:[" + target + ']; path:[' + path + ']')
 
