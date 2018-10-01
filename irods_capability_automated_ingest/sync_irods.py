@@ -2,9 +2,8 @@ import os
 from os.path import dirname, basename
 from irods.session import iRODSSession
 from irods.models import Resource, DataObject, Collection
-from .sync_utils import size, get_redis, call, get_hdlr_mod
+from .sync_utils import size, call, get_hdlr_mod
 from .utils import Operation
-import redis_lock
 import json
 import irods.keywords as kw
 import base64, random
@@ -32,23 +31,20 @@ def child_of(session, child_resc_name, resc_name):
 def create_dirs(hdlr_mod, logger, session, meta, **options):
     target = meta["target"]
     path = meta["path"]
-    config = meta["config"]
-    if target.startswith("/"):
-        if not session.collections.exists(target):
-            if session.data_objects.exists(target):
-                raise Exception("sync: cannot sync dir " + path + " to data object " + target)
-            r = get_redis(config)
-            with redis_lock.Lock(r, "create_dirs:" + path):
-                if target == "/":
-                    raise Exception("create_dirs: Cannot create root")
-                meta2 = meta.copy()
-                meta2["target"] = dirname(target)
-                meta2["path"] = dirname(path)
-                create_dirs(hdlr_mod, logger, session, meta2, **options)
-
-                call(hdlr_mod, "on_coll_create", create_dir, logger, hdlr_mod, logger, session, meta, **options)
-    else:
+    if not target.startswith("/"):
         raise Exception("create_dirs: relative path; target:[" + target + ']; path:[' + path + ']')
+    if session.data_objects.exists(target):
+        raise Exception("sync: cannot sync dir " + path + " to data object " + target)
+
+    if not session.collections.exists(target):
+        if target == "/":
+            raise Exception("create_dirs: Cannot create root")
+        meta2 = meta.copy()
+        meta2["target"] = dirname(target)
+        meta2["path"] = dirname(path)
+        create_dirs(hdlr_mod, logger, session, meta2, **options)
+
+        call(hdlr_mod, "on_coll_create", create_dir, logger, hdlr_mod, logger, session, meta, **options)
 
 
 def create_dir(hdlr_mod, logger, session, meta, **options):
@@ -370,7 +366,6 @@ def sync_data_from_file(meta, logger, content, **options):
             meta2["target"] = dirname(target)
             if 'b64_path_str' not in meta2:
                 meta2["path"] = dirname(path)
-            create_dirs(hdlr_mod, logger, session, meta2, **options)
             if put:
                 call(hdlr_mod, "on_data_obj_create", upload_file, logger, hdlr_mod, logger, session, meta, **options)
             else:
