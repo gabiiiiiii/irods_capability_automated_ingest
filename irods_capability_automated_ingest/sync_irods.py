@@ -2,9 +2,10 @@ import os
 from os.path import dirname, basename
 from irods.session import iRODSSession
 from irods.models import Resource, DataObject, Collection
-from .sync_utils import size, call, get_hdlr_mod
+from .sync_utils import size, call, get_redis, get_hdlr_mod
 from .utils import Operation
 import json
+import redis_lock
 import irods.keywords as kw
 import base64, random
 import threading
@@ -29,23 +30,25 @@ def child_of(session, child_resc_name, resc_name):
 
 
 def create_dirs(hdlr_mod, logger, session, meta, **options):
+    config = meta["config"]
     target = meta["target"]
     path = meta["path"]
-    if not target.startswith("/"):
-        raise Exception("create_dirs: relative path; target:[" + target + ']; path:[' + path + ']')
-    if session.data_objects.exists(target):
-        raise Exception("sync: cannot sync dir " + path + " to data object " + target)
+    r = get_redis(config)
+    with redis_lock.Lock(r, "create_dirs:" + path):
+        if not target.startswith("/"):
+            raise Exception("create_dirs: relative path; target:[" + target + ']; path:[' + path + ']')
+        if session.data_objects.exists(target):
+            raise Exception("sync: cannot sync dir " + path + " to data object " + target)
 
-    if not session.collections.exists(target):
-        if target == "/":
-            raise Exception("create_dirs: Cannot create root")
-        meta2 = meta.copy()
-        meta2["target"] = dirname(target)
-        meta2["path"] = dirname(path)
-        create_dirs(hdlr_mod, logger, session, meta2, **options)
+        if not session.collections.exists(target):
+            if target == "/":
+                raise Exception("create_dirs: Cannot create root")
+            meta2 = meta.copy()
+            meta2["target"] = dirname(target)
+            meta2["path"] = dirname(path)
+            create_dirs(hdlr_mod, logger, session, meta2, **options)
 
-        call(hdlr_mod, "on_coll_create", create_dir, logger, hdlr_mod, logger, session, meta, **options)
-
+            call(hdlr_mod, "on_coll_create", create_dir, logger, hdlr_mod, logger, session, meta, **options)
 
 def create_dir(hdlr_mod, logger, session, meta, **options):
     target = meta["target"]
