@@ -917,19 +917,23 @@ class Test_irods_sync(TestCase):
 
     def test_invalid_continuation_byte_ingest(self):
         try:
+            # create file with invalid continuation byte in the name
+            source_dir_path = mkdtemp()
             bad_filename = 'SRR388318\\360\\032\\026\\n.fastq'
-            open(bad_filename, 'a').close()
-            proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", self.source_dir_path, self.dest_coll_path, "--job_name", "test_irods_sync", "--log_level", "INFO", '--files_per_task', '1'])
+            open(os.path.join(source_dir_path, bad_filename), 'a').close()
+            # ingest directory with bad filename
+            dest_coll_path = '/tempZone/home/rods/test_invalid_continuation_byte_ingest'
+            proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", source_dir_path, dest_coll_path, "--job_name", "test_irods_sync", "--log_level", "INFO", '--files_per_task', '1'])
             proc.wait()
             workers = start_workers(1)
             wait_for(workers)
 
+            # assert that nothing failed
             r = StrictRedis()
             self.assertEqual(get_with_key(r, failures_key, "test_irods_sync", int), 0)
             self.assertEqual(get_with_key(r, retries_key, "test_irods_sync", int), 0)
         finally:
-            if os.path.exists(bad_filename):
-                os.unlink(bad_filename)
+            rmtree(source_dir_path, ignore_errors=True)
 
 class Test_irods_sync_UnicodeEncodeError(TestCase):
     def setUp(self):
