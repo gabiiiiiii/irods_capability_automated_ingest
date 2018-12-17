@@ -928,7 +928,7 @@ class Test_irods_sync(TestCase):
             self.assertEqual(get_with_key(r, failures_key, "test_irods_sync", int), 0)
             self.assertEqual(get_with_key(r, retries_key, "test_irods_sync", int), 0)
         finally:
-            if os.exists(bad_filename):
+            if os.path.exists(bad_filename):
                 os.unlink(bad_filename)
 
 class Test_irods_sync_UnicodeEncodeError(TestCase):
