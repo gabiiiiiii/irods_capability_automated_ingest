@@ -915,6 +915,22 @@ class Test_irods_sync(TestCase):
     def test_post_job(self):
         self.do_post_job("irods_capability_automated_ingest.examples.post_job")
 
+    def test_invalid_continuation_byte_ingest(self):
+        try:
+            bad_filename = 'SRR388318\\360\\032\\026\\n.fastq'
+            open(bad_filename, 'a').close()
+            proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", self.source_dir_path, self.dest_coll_path, "--job_name", "test_irods_sync", "--log_level", "INFO", '--files_per_task', '1'])
+            proc.wait()
+            workers = start_workers(1)
+            wait_for(workers)
+
+            r = StrictRedis()
+            self.assertEqual(get_with_key(r, failures_key, "test_irods_sync", int), 0)
+            self.assertEqual(get_with_key(r, retries_key, "test_irods_sync", int), 0)
+        finally:
+            if os.exists(bad_filename):
+                os.unlink(bad_filename)
+
 class Test_irods_sync_UnicodeEncodeError(TestCase):
     def setUp(self):
         clear_redis()
