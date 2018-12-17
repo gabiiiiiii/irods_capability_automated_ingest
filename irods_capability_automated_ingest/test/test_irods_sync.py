@@ -19,6 +19,8 @@ from ..sync_utils import size, get_with_key, app, failures_key, retries_key
 from ..sync_task import done
 import time
 
+test_env = os.environ.copy()
+
 LOG_FILE = "/tmp/a"
 
 IRODS_MAJOR = 4
@@ -101,12 +103,12 @@ def clear_redis():
 def start_workers(n, args=[]):
     os.environ["CELERY_BROKER_URI"] = "redis://localhost/0"
     print("start " + str(n) + " worker(s)")
-    workers = subprocess.Popen(["celery", "-A", "irods_capability_automated_ingest.sync_task", "worker", "-c", str(n), "-l", "info", "-Q", "restart,path,file"] + args)
+    workers = subprocess.Popen(['coverage', 'run', '-m', "celery", "-A", "irods_capability_automated_ingest.sync_task", "worker", "-c", str(n), "-l", "info", "-Q", "restart,path,file", '-P', 'solo'] + args, env=test_env)
     return workers
 
 
 def start_scheduler(n):
-    scheduler = subprocess.Popen(["rqscheduler", "-i", "1"])
+    scheduler = subprocess.Popen(["rqscheduler", "-i", "1"], env=test_env)
     return scheduler
 
 
@@ -218,7 +220,7 @@ def delete_resources(session, hierarchy, root = None):
 
 
 def irmtrash():
-    proc = subprocess.Popen(["irmtrash"])
+    proc = subprocess.Popen(["irmtrash"], env=test_env)
     proc.wait()
 
 
@@ -261,12 +263,12 @@ class Test_irods_sync(TestCase):
             delete_resources(session, HIERARCHY1)
 
     def do_no_event_handler(self):
-        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", A, A_COLL, "--log_level", "INFO"])
+        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", A, A_COLL, "--log_level", "INFO"], env=test_env)
         proc.wait()
         self.do_register2()
 
     def do_register(self, eh, resc_name = [DEFAULT_RESC]):
-        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", A, A_COLL, "--event_handler", eh, "--job_name", "test_irods_sync", "--log_level", "INFO", '--files_per_task', '1'])
+        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", A, A_COLL, "--event_handler", eh, "--job_name", "test_irods_sync", "--log_level", "INFO", '--files_per_task', '1'], env=test_env)
         proc.wait()
         self.do_register2(resc_names=resc_name)
 
@@ -301,7 +303,7 @@ class Test_irods_sync(TestCase):
 
     def do_register_dir_par(self, eh, resc_names=[DEFAULT_RESC]):
         create_files2(10, NFILES)
-        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", A, A_COLL, "--event_handler", eh, "--job_name", "test_irods_sync", "--log_level", "INFO", '--files_per_task', '1'])
+        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", A, A_COLL, "--event_handler", eh, "--job_name", "test_irods_sync", "--log_level", "INFO", '--files_per_task', '1'], env=test_env)
         proc.wait()
         workers = start_workers(NWORKERS)
         wait_for(workers)
@@ -329,7 +331,7 @@ class Test_irods_sync(TestCase):
                     self.assertEqual(datetime.utcfromtimestamp(mtime1), mtime2)
 
     def do_register_par(self, eh, resc_names=[DEFAULT_RESC]):
-        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", A, A_COLL, "--event_handler", eh, "--job_name", "test_irods_sync", "--log_level", "INFO", '--files_per_task', '1'])
+        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", A, A_COLL, "--event_handler", eh, "--job_name", "test_irods_sync", "--log_level", "INFO", '--files_per_task', '1'], env=test_env)
         proc.wait()
         workers = start_workers(NWORKERS)
         wait_for(workers)
@@ -337,7 +339,7 @@ class Test_irods_sync(TestCase):
         self.do_assert_register(resc_names)
 
     def do_retry(self, eh, resc_name = [DEFAULT_RESC]):
-        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", A, A_COLL, "--event_handler", eh, "--job_name", "test_irods_sync", "--log_level", "INFO", '--files_per_task', '1'])
+        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", A, A_COLL, "--event_handler", eh, "--job_name", "test_irods_sync", "--log_level", "INFO", '--files_per_task', '1'], env=test_env)
         proc.wait()
         workers = start_workers(1)
         wait_for(workers)
@@ -348,7 +350,7 @@ class Test_irods_sync(TestCase):
         self.do_assert_retry_queue()
 
     def do_no_retry(self, eh, resc_name = [DEFAULT_RESC]):
-        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", A, A_COLL, "--event_handler", eh, "--job_name", "test_irods_sync", "--log_level", "INFO", '--files_per_task', '1'])
+        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", A, A_COLL, "--event_handler", eh, "--job_name", "test_irods_sync", "--log_level", "INFO", '--files_per_task', '1'], env=test_env)
         proc.wait()
         workers = start_workers(1)
         wait_for(workers)
@@ -356,7 +358,7 @@ class Test_irods_sync(TestCase):
         self.do_assert_failed_queue("no failures")
 
     def do_put(self, eh, resc_names = [DEFAULT_RESC], resc_roots = [DEFAULT_RESC_VAULT_PATH]):
-        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", A, A_COLL, "--event_handler", eh, "--job_name", "test_irods_sync", "--log_level", "INFO", '--files_per_task', '1'])
+        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", A, A_COLL, "--event_handler", eh, "--job_name", "test_irods_sync", "--log_level", "INFO", '--files_per_task', '1'], env=test_env)
         proc.wait()
 
         workers = start_workers(1)
@@ -365,7 +367,7 @@ class Test_irods_sync(TestCase):
         self.do_assert_put(resc_names, resc_roots)
 
     def do_put_par(self, eh, resc_names=[DEFAULT_RESC], resc_roots=[DEFAULT_RESC_VAULT_PATH]):
-        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", A, A_COLL, "--event_handler", eh, "--job_name", "test_irods_sync", "--log_level", "INFO", '--files_per_task', '1'])
+        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", A, A_COLL, "--event_handler", eh, "--job_name", "test_irods_sync", "--log_level", "INFO", '--files_per_task', '1'], env=test_env)
         proc.wait()
 
         workers = start_workers(NWORKERS)
@@ -395,7 +397,7 @@ class Test_irods_sync(TestCase):
         clear_redis()
         recreate_files(NFILES)
 
-        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", A, A_COLL, "--event_handler", eh, "--job_name", "test_irods_sync", "--log_level", "INFO", '--files_per_task', '1'])
+        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", A, A_COLL, "--event_handler", eh, "--job_name", "test_irods_sync", "--log_level", "INFO", '--files_per_task', '1'], env=test_env)
         proc.wait()
 
         workers = start_workers(1)
@@ -457,7 +459,7 @@ class Test_irods_sync(TestCase):
     def do_no_sync(self, eh):
         recreate_files(NFILES)
 
-        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", A, A_COLL, "--event_handler", eh, "--job_name", "test_irods_sync", "--log_level", "INFO", '--files_per_task', '1'])
+        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", A, A_COLL, "--event_handler", eh, "--job_name", "test_irods_sync", "--log_level", "INFO", '--files_per_task', '1'], env=test_env)
         proc.wait()
 
         workers = start_workers(1)
@@ -475,14 +477,14 @@ class Test_irods_sync(TestCase):
     def do_no_op(self, eh):
         recreate_files(NFILES)
 
-        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", A, A_COLL, "--event_handler", eh, "--job_name", "test_irods_sync", "--log_level", "INFO", '--files_per_task', '1'])
+        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", A, A_COLL, "--event_handler", eh, "--job_name", "test_irods_sync", "--log_level", "INFO", '--files_per_task', '1'], env=test_env)
         proc.wait()
 
         workers = start_workers(1)
         wait_for(workers)
 
     def do_pre_job(self, eh):
-        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", A, A_COLL, "--event_handler", eh, "--job_name", "test_irods_sync", "--log_level", "INFO", '--files_per_task', '1'])
+        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", A, A_COLL, "--event_handler", eh, "--job_name", "test_irods_sync", "--log_level", "INFO", '--files_per_task', '1'], env=test_env)
         proc.wait()
 
         workers = start_workers(1)
@@ -493,7 +495,7 @@ class Test_irods_sync(TestCase):
 
 
     def do_post_job(self, eh):
-        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", A, A_COLL, "--event_handler", eh, "--job_name", "test_irods_sync", "--log_level", "INFO", '--files_per_task', '1'])
+        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", A, A_COLL, "--event_handler", eh, "--job_name", "test_irods_sync", "--log_level", "INFO", '--files_per_task', '1'], env=test_env)
         proc.wait()
 
         workers = start_workers(1)
@@ -503,7 +505,7 @@ class Test_irods_sync(TestCase):
             self.assertEqual(lines, ["post_job"])
 
     def do_timeout(self, eh):
-        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", A, A_COLL, "--event_handler", eh, "--job_name", "test_irods_sync", "--log_level", "INFO", '--files_per_task', '1'])
+        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", A, A_COLL, "--event_handler", eh, "--job_name", "test_irods_sync", "--log_level", "INFO", '--files_per_task', '1'], env=test_env)
         proc.wait()
 
         workers = start_workers(1)
@@ -515,7 +517,7 @@ class Test_irods_sync(TestCase):
     def do_append_json(self, eh):
         recreate_files(NFILES)
 
-        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", A, A_COLL, "--event_handler", eh, "--append_json", "\"append_json\"", "--job_name", "test_irods_sync", "--log_level", "INFO", '--files_per_task', '1'])
+        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", A, A_COLL, "--event_handler", eh, "--append_json", "\"append_json\"", "--job_name", "test_irods_sync", "--log_level", "INFO", '--files_per_task', '1'], env=test_env)
         proc.wait()
 
         workers = start_workers(1)
@@ -747,6 +749,9 @@ class Test_irods_sync(TestCase):
     # put
 
     def test_put(self):
+        var = test_env.get('COVERAGE_PROCESS_START')
+        if var is not None:
+            print('XXXX - ' + var)
         self.do_put("irods_capability_automated_ingest.examples.put")
         self.do_assert_failed_queue(count=None)
         self.do_assert_retry_queue(count=None)
@@ -980,7 +985,7 @@ class Test_irods_sync_UnicodeEncodeError(TestCase):
         self.assertEqual(get_with_key(r, retries_key, "test_irods_sync", int), count)
 
     def run_scan_with_event_handler(self, event_handler):
-        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", self.source_dir_path, self.dest_coll_path, "--event_handler", event_handler, "--job_name", "test_irods_sync", "--log_level", "INFO", '--files_per_task', '1'])
+        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", self.source_dir_path, self.dest_coll_path, "--event_handler", event_handler, "--job_name", "test_irods_sync", "--log_level", "INFO", '--files_per_task', '1'], env=test_env)
         proc.wait()
         workers = start_workers(1)
         wait_for(workers)
@@ -1021,4 +1026,4 @@ class Test_irods_sync_UnicodeEncodeError(TestCase):
     # TODO: #63 - Add put_append test
 
 if __name__ == '__main__':
-        unittest.main()
+    unittest.main()
