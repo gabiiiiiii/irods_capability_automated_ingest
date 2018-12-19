@@ -103,7 +103,7 @@ def clear_redis():
 def start_workers(n, args=[]):
     os.environ["CELERY_BROKER_URI"] = "redis://localhost/0"
     print("start " + str(n) + " worker(s)")
-    workers = subprocess.Popen(['coverage', 'run', '-m', "celery", "-A", "irods_capability_automated_ingest.sync_task", "worker", "-c", str(n), "-l", "info", "-Q", "restart,path,file", '-P', 'solo'] + args, env=test_env)
+    workers = subprocess.Popen(["celery", "-A", "irods_capability_automated_ingest.sync_task", "worker", "-c", str(n), "-l", "info", "-Q", "restart,path,file", '-P', 'solo'] + args, env=test_env)
     return workers
 
 
