@@ -252,9 +252,9 @@ class Test_irods_sync(TestCase):
         with iRODSSession(irods_env_file=env_file) as session:
             create_resources(session, HIERARCHY1)
 
-        self.log_filename = '/tmp/test_irods_sync.log'
-        if os.path.exists(self.log_filename):
-            os.unlink(self.log_filename)
+        self.logfile = NamedTemporaryFile()
+        if os.path.exists(self.logfile.name):
+            os.unlink(self.logfile.name)
 
     def tearDown(self):
         delete_files()
@@ -263,8 +263,8 @@ class Test_irods_sync(TestCase):
         irmtrash()
         with iRODSSession(irods_env_file=env_file) as session:
             delete_resources(session, HIERARCHY1)
-        if os.path.exists(self.log_filename):
-            os.unlink(self.log_filename)
+        if os.path.exists(self.logfile.name):
+            os.unlink(self.logfile.name)
 
     def do_no_event_handler(self):
         proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", A, A_COLL, "--log_level", "INFO"])
@@ -923,7 +923,7 @@ class Test_irods_sync(TestCase):
     # pep callbacks
     def run_sync_job_with_pep_callbacks(self, source_dir=A, destination_coll=A_COLL):
         eh = 'irods_capability_automated_ingest.examples.register_with_peps'
-        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", source_dir, destination_coll, "--event_handler", eh, "--job_name", "test_irods_sync", "--log_level", "INFO", '--log_filename', self.log_filename, '--files_per_task', '1'])
+        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", source_dir, destination_coll, "--event_handler", eh, "--job_name", "test_irods_sync", "--log_level", "INFO", '--log_filename', self.logfile.name, '--files_per_task', '1'])
         proc.wait()
 
     def assert_pep_messages_in_log(self, log_contents, messages):
@@ -936,7 +936,7 @@ class Test_irods_sync(TestCase):
         self.run_sync_job_with_pep_callbacks()
         self.do_register2(DEFAULT_RESC)
 
-        with open(self.log_filename, 'r') as f:
+        with open(self.logfile.name, 'r') as f:
             log_contents = f.read()
 
         files = [os.path.join(A_COLL, str(x)) for x in range(NFILES)]
@@ -959,7 +959,7 @@ class Test_irods_sync(TestCase):
         self.do_register2(DEFAULT_RESC)
 
         # Read in log and verify that PEPs fired
-        with open(self.log_filename, 'r') as f:
+        with open(self.logfile.name, 'r') as f:
             log_contents = f.read()
         files = [os.path.join(A_COLL, str(x)) for x in range(NFILES)]
         pep_messages = [['pre_data_obj_modify:[' + filepath + ']' for filepath in files],
@@ -985,7 +985,7 @@ class Test_irods_sync(TestCase):
                 for subdir in subdir_names:
                     self.assertTrue(session.collections.exists(os.path.join(A_COLL, subdir)))
 
-            with open(self.log_filename, 'r') as f:
+            with open(self.logfile.name, 'r') as f:
                 log_contents = f.read()
 
             collections = [os.path.join(A_COLL, subdir) for subdir in subdir_names]
