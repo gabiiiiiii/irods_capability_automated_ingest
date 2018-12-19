@@ -22,7 +22,7 @@ import time
 LOG_FILE = "/tmp/a"
 
 IRODS_MAJOR = 4
-IRODS_MINOR = 2
+IRODS_MINOR = 3
 
 IRODS_SYNC_PY = "irods_capability_automated_ingest.irods_sync"
 
