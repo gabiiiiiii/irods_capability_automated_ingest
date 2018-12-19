@@ -253,8 +253,8 @@ class Test_irods_sync(TestCase):
             create_resources(session, HIERARCHY1)
 
         self.logfile = NamedTemporaryFile()
-        if os.path.exists(self.logfile.name):
-            os.unlink(self.logfile.name)
+        #if os.path.exists(self.logfile.name):
+            #os.unlink(self.logfile.name)
 
     def tearDown(self):
         delete_files()
