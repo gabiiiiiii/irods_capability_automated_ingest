@@ -263,8 +263,8 @@ class Test_irods_sync(TestCase):
         irmtrash()
         with iRODSSession(irods_env_file=env_file) as session:
             delete_resources(session, HIERARCHY1)
-        if os.path.exists(self.logfile.name):
-            os.unlink(self.logfile.name)
+        #if os.path.exists(self.logfile.name):
+            #os.unlink(self.logfile.name)
 
     def do_no_event_handler(self):
         proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", A, A_COLL, "--log_level", "INFO"])
