@@ -7,6 +7,7 @@ from .utils import Operation
 import redis_lock
 import json
 import irods.keywords as kw
+import irods.exception
 import base64, random
 import ssl
 import threading
