@@ -1,6 +1,10 @@
-from .sync_task import start_synchronization, stop_synchronization, list_synchronization, monitor_synchronization
-import argparse
+#from . import start_synchronization, stop_synchronization, list_synchronization, monitor_synchronization
+from .start_synchronization import start_synchronization
+from .stop_synchronization import stop_synchronization
+from .list_synchronization import list_synchronization
+from .monitor_synchronization import monitor_synchronization
 from uuid import uuid1
+import argparse
 import json
 import sys
 

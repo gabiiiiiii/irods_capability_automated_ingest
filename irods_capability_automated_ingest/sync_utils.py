@@ -148,3 +148,7 @@ def call(hdlr_mod, hdlr, func, logger, *args, **options):
     else:
         func(*args, **options)
 
+def done(r, job_name):
+    task_count = get_with_key(r, tasks_key, job_name, int)
+    return task_count is None or task_count == 0
+
