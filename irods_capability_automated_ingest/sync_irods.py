@@ -3,16 +3,18 @@ from os.path import dirname, basename
 from irods.session import iRODSSession
 from irods.models import Resource, DataObject, Collection
 from irods.exception import NetworkException
-from .sync_utils import size, get_redis, call, get_hdlr_mod
+from .sync_utils import size, get_redis
 from .utils import Operation
+from .custom_event_handler import custom_event_handler
+from . import sync_logging
 import redis_lock
 import json
 import irods.keywords as kw
-import base64, random
+import base64
 import ssl
 import threading
 
-def validate_target_collection(meta, logger):
+def validate_target_collection(meta):
     # root cannot be the target collection
     destination_collection_logical_path = meta["target"]
     if destination_collection_logical_path == "/":
@@ -37,44 +39,33 @@ def child_of(session, child_resc_name, resc_name):
         return False
 
 
-def create_dirs(hdlr_mod, logger, session, meta, **options):
+def create_dirs(meta, session, **options):
     target = meta["target"]
     path = meta["path"]
     config = meta["config"]
+    event_handler = custom_event_handler(meta)
     if target.startswith("/"):
         r = get_redis(config)
         if not session.collections.exists(target):
             with redis_lock.Lock(r, "create_dirs:" + path):
                 if not session.collections.exists(target):
-                    meta2 = meta.copy()
-                    meta2["target"] = dirname(target)
-                    meta2["path"] = dirname(path)
-                    create_dirs(hdlr_mod, logger, session, meta2, **options)
+                    meta_for_subdir = meta.copy()
+                    meta_for_subdir["target"] = dirname(target)
+                    meta_for_subdir["path"] = dirname(path)
+                    create_dirs(meta_for_subdir, session, **options)
 
-                    call(hdlr_mod, "on_coll_create", create_dir, logger, hdlr_mod, logger, session, meta, **options)
+                    event_handler.call("on_coll_create", create_dir, meta, session, **options)
     else:
         raise Exception("create_dirs: relative path; target:[" + target + ']; path:[' + path + ']')
 
 
-def create_dir(hdlr_mod, logger, session, meta, **options):
+def create_dir(meta, session, **options):
     target = meta["target"]
     path = meta["path"]
+    logger = sync_logging.get_sync_logger(meta['config']['log'])
     logger.info("creating collection " + target)
     session.collections.create(target)
 
-
-def get_target_path(hdlr_mod, session, meta, **options):
-    if hasattr(hdlr_mod, "target_path"):
-        return hdlr_mod.target_path(session, meta, **options)
-    else:
-        return None
-
-
-def get_resource_name(hdlr_mod, session, meta, **options):
-    if hasattr(hdlr_mod, "to_resource"):
-        return hdlr_mod.to_resource(session, meta, **options)
-    else:
-        return None
 
 def annotate_metadata_for_special_data_objs(meta, session, source_physical_fullpath, dest_dataobj_logical_fullpath):
     def add_metadata_if_not_present(obj, key, val, unit=None):
@@ -103,20 +94,23 @@ def annotate_metadata_for_special_data_objs(meta, session, source_physical_fullp
             os.path.join(os.path.dirname(source_physical_fullpath), os.readlink(source_physical_fullpath)),
             'automated_ingest')
 
-def register_file(hdlr_mod, logger, session, meta, **options):
+def register_file(meta, session, **options):
     dest_dataobj_logical_fullpath = meta["target"]
     source_physical_fullpath = meta["path"]
     b64_path_str = meta.get('b64_path_str')
 
-    phypath_to_register_in_catalog = get_target_path(hdlr_mod, session, meta, **options)
+    event_handler = custom_event_handler(meta)
+    if event_handler is None:
+        phypath_to_register_in_catalog = None
+    else:
+        phypath_to_register_in_catalog = event_handler.target_path(session, **options)
     if phypath_to_register_in_catalog is None:
         if b64_path_str is not None:
             phypath_to_register_in_catalog = os.path.join(source_physical_fullpath, meta['unicode_error_filename'])
         else:
             phypath_to_register_in_catalog = source_physical_fullpath
 
-    resc_name = get_resource_name(hdlr_mod, session, meta, **options)
-
+    resc_name = event_handler.to_resource(session, **options)
     if resc_name is not None:
         options["destRescName"] = resc_name
 
@@ -126,6 +120,7 @@ def register_file(hdlr_mod, logger, session, meta, **options):
     options[kw.DATA_SIZE_KW] = str(meta['size'])
     options[kw.DATA_MODIFY_KW] = str(int(meta['mtime']))
 
+    logger = sync_logging.get_sync_logger(meta['config']['log'])
     logger.info("registering object " + dest_dataobj_logical_fullpath + ", options = " + str(options))
     session.data_objects.register(phypath_to_register_in_catalog, dest_dataobj_logical_fullpath, **options)
 
@@ -133,19 +128,20 @@ def register_file(hdlr_mod, logger, session, meta, **options):
 
     annotate_metadata_for_special_data_objs(meta, session, source_physical_fullpath, dest_dataobj_logical_fullpath)
 
-def upload_file(hdlr_mod, logger, session, meta, **options):
+def upload_file(meta, session, **options):
     dest_dataobj_logical_fullpath = meta["target"]
     source_physical_fullpath = meta["path"]
     b64_path_str = meta.get('b64_path_str')
 
-    resc_name = get_resource_name(hdlr_mod, session, meta, **options)
-
+    event_handler = custom_event_handler(meta)
+    resc_name = event_handler.to_resource(session, **options)
     if resc_name is not None:
         options["destRescName"] = resc_name
 
     if b64_path_str is not None:
         source_physical_fullpath = base64.b64decode(b64_path_str)
 
+    logger = sync_logging.get_sync_logger(meta['config']['log'])
     logger.info("uploading object " + dest_dataobj_logical_fullpath + ", options = " + str(options))
     session.data_objects.put(source_physical_fullpath, dest_dataobj_logical_fullpath, **options)
 
@@ -154,25 +150,26 @@ def upload_file(hdlr_mod, logger, session, meta, **options):
     annotate_metadata_for_special_data_objs(meta, session, source_physical_fullpath, dest_dataobj_logical_fullpath)
 
 
-def no_op(hdlr_mod, logger, session, meta, **options):
+def no_op(meta, session, **options):
     pass
 
 
-def sync_file(hdlr_mod, logger, session, meta, **options):
+def sync_file(meta, session, **options):
     dest_dataobj_logical_fullpath = meta["target"]
     source_physical_fullpath = meta["path"]
     b64_path_str = meta.get('b64_path_str')
 
-    resc_name = get_resource_name(hdlr_mod, session, meta, **options)
-
+    event_handler = custom_event_handler(meta)
+    resc_name = event_handler.to_resource(session, **options)
     if resc_name is not None:
         options["destRescName"] = resc_name
 
     if b64_path_str is not None:
         source_physical_fullpath = base64.b64decode(b64_path_str)
 
+    logger = sync_logging.get_sync_logger(meta['config']['log'])
     logger.info("syncing object " + dest_dataobj_logical_fullpath + ", options = " + str(options))
-    op = hdlr_mod.operation(session, meta, **options)
+    op = event_handler.operation(session, **options)
 
     if op == Operation.PUT_APPEND:
         BUFFER_SIZE = 1024
@@ -191,15 +188,18 @@ def sync_file(hdlr_mod, logger, session, meta, **options):
         logger.info("succeeded", task="irods_append_file", path=source_physical_fullpath)
 
     else:
+        if op is None:
+            op = Operation.REGISTER_SYNC
         logger.info("uploading object " + dest_dataobj_logical_fullpath + ", options = " + str(options))
         session.data_objects.put(source_physical_fullpath, dest_dataobj_logical_fullpath, **options)
         logger.info("succeeded", task="irods_update_file", path = source_physical_fullpath)
 
 
-def update_metadata(hdlr_mod, logger, session, meta, **options):
+def update_metadata(meta, session, **options):
     dest_dataobj_logical_fullpath = meta["target"]
     source_physical_fullpath = meta["path"]
-    phypath_to_register_in_catalog = get_target_path(hdlr_mod, session, meta, **options)
+    event_handler = custom_event_handler(meta)
+    phypath_to_register_in_catalog = event_handler.target_path(session, **options)
     b64_path_str = meta.get('b64_path_str')
     if phypath_to_register_in_catalog is None:
         if b64_path_str is not None:
@@ -213,13 +213,15 @@ def update_metadata(hdlr_mod, logger, session, meta, **options):
 
     size = int(meta['size'])
     mtime = int(meta['mtime'])
+    logger = sync_logging.get_sync_logger(meta['config']['log'])
     logger.info("updating object: " + dest_dataobj_logical_fullpath + ", options = " + str(options))
 
     data_obj_info = {"objPath": dest_dataobj_logical_fullpath}
 
-    resc_name = get_resource_name(hdlr_mod, session, meta, **options)
     outdated_repl_nums = []
     found = False
+
+    resc_name = event_handler.to_resource(session, **options)
     if resc_name is None:
         found = True
     else:
@@ -245,9 +247,6 @@ def update_metadata(hdlr_mod, logger, session, meta, **options):
     else:
         logger.info("succeeded", task="irods_update_metadata", path = source_physical_fullpath)
 
-
-def sync_file_meta(hdlr_mod, logger, session, meta, **options):
-    pass
 
 irods_session_map = {}
 irods_session_timer_map = {}
@@ -281,7 +280,7 @@ def start_timer():
     for k, v in irods_session_timer_map.items():
         v.start();
 
-def irods_session(hdlr_mod, meta, logger, **options):
+def irods_session(handler_module, meta, **options):
     env_irods_host = os.environ.get("IRODS_HOST")
     env_irods_port = os.environ.get("IRODS_PORT")
     env_irods_user_name = os.environ.get("IRODS_USER_NAME")
@@ -307,8 +306,8 @@ def irods_session(hdlr_mod, meta, logger, **options):
         kwargs["zone"] = env_irods_zone_name
         kwargs["password"] = env_irods_password
 
-    if hasattr(hdlr_mod, "as_user"):
-        client_zone, client_user = hdlr_mod.as_user(meta, **options)
+    if hasattr(handler_module, "as_user"):
+        client_zone, client_user = handler_module.as_user(meta, **options)
         kwargs["client_user"] = client_user
         kwargs["client_zone"] = client_zone
 
@@ -339,6 +338,7 @@ def irods_session(hdlr_mod, meta, logger, **options):
         timer.cancel()
         irods_session_timer_map.pop(key, None)
     idle_sec = meta['idle_disconnect_seconds']
+    logger = sync_logging.get_sync_logger(meta['config']['log'])
     logger.info("iRODS Idle Time set to: "+str(idle_sec))
 
     timer = disconnect_timer(logger, idle_sec, irods_session_map)
@@ -348,13 +348,19 @@ def irods_session(hdlr_mod, meta, logger, **options):
     return sess
 
 
-def sync_data_from_file(meta, logger, content, **options):
+def sync_file_meta(meta, session, **options):
+    pass
+
+def sync_metadata_from_file(meta, **options):
+    sync_data_from_file(meta, metadata_only=True, **options)
+
+def sync_data_from_file(meta, metadata_only=False, **options):
     target = meta["target"]
     path = meta["path"]
-    hdlr_mod = get_hdlr_mod(meta)
     init = meta["initial_ingest"]
 
-    session = irods_session(hdlr_mod, meta, logger, **options)
+    event_handler = custom_event_handler(meta)
+    session = irods_session(event_handler.get_module(), meta, **options)
 
     if init:
         exists = False
@@ -366,22 +372,20 @@ def sync_data_from_file(meta, logger, content, **options):
         else:
             exists = False
 
-    if hasattr(hdlr_mod, "operation"):
-        op = hdlr_mod.operation(session, meta, **options)
-    else:
-        op = Operation.REGISTER_SYNC
+    op = event_handler.operation(session, **options)
 
     if op == Operation.NO_OP:
         if not exists:
-            call(hdlr_mod, "on_data_obj_create", no_op, logger, hdlr_mod, logger, session, meta, **options)
+            event_handler.call("on_data_obj_create", no_op, meta, session, **options)
         else:
-            call(hdlr_mod, "on_data_obj_modify", no_op, logger, hdlr_mod, logger, session, meta, **options)
+            event_handler.call("on_data_obj_modify", no_op, meta, session, **options)
     else:
+        if op is None:
+            op = Operation.REGISTER_SYNC
         createRepl = False
         if exists and op == Operation.REGISTER_AS_REPLICA_SYNC:
-            if hasattr(hdlr_mod, "to_resource"):
-                resc_name = hdlr_mod.to_resource(session, meta, **options)
-            else:
+            resc_name = event_handler.to_resource(session, **options)
+            if resc_name is None:
                 raise Exception("no resource name defined")
 
             found = False
@@ -400,60 +404,61 @@ def sync_data_from_file(meta, logger, content, **options):
         put = op in [Operation.PUT, Operation.PUT_SYNC, Operation.PUT_APPEND]
 
         if not exists:
-            meta2 = meta.copy()
-            meta2["target"] = dirname(target)
-            if 'b64_path_str' not in meta2:
-                meta2["path"] = dirname(path)
-            create_dirs(hdlr_mod, logger, session, meta2, **options)
+            meta_for_parent_dir = meta.copy()
+            meta_for_parent_dir["target"] = dirname(target)
+            if 'b64_path_str' not in meta_for_parent_dir:
+                meta_for_parent_dir["path"] = dirname(path)
+            create_dirs(meta_for_parent_dir, session, **options)
             if put:
-                call(hdlr_mod, "on_data_obj_create", upload_file, logger, hdlr_mod, logger, session, meta, **options)
+                event_handler.call("on_data_obj_create", upload_file, meta, session, **options)
             else:
-                call(hdlr_mod, "on_data_obj_create", register_file, logger, hdlr_mod, logger, session, meta, **options)
+                event_handler.call("on_data_obj_create", register_file, meta, session, **options)
         elif createRepl:
             options["regRepl"] = ""
 
-            call(hdlr_mod, "on_data_obj_create", register_file, logger, hdlr_mod, logger, session, meta, **options)
-        elif content:
+            event_handler.call("on_data_obj_create", register_file, meta, session, **options)
+        elif not metadata_only:
             if put:
                 sync = op in [Operation.PUT_SYNC, Operation.PUT_APPEND]
                 if sync:
-                    call(hdlr_mod, "on_data_obj_modify", sync_file, logger, hdlr_mod, logger, session, meta, **options)
+                    event_handler.call("on_data_obj_modify", sync_file, meta, session, **options)
             else:
-                call(hdlr_mod, "on_data_obj_modify", update_metadata, logger, hdlr_mod, logger, session, meta, **options)
+                # This is a registered file, so only metadata will be updated
+                event_handler.call("on_data_obj_modify", update_metadata, meta, session, **options)
         else:
-            call(hdlr_mod, "on_data_obj_modify", sync_file_meta, logger, hdlr_mod, logger, session, meta, **options)
+            # TODO: What is the use case for sync_file_meta (empty function)?
+            event_handler.call("on_data_obj_modify", sync_file_meta, meta, session, **options)
 
     start_timer()
 
-def sync_metadata_from_file(meta, logger, **options):
-    sync_data_from_file(meta, logger, False, **options)
-
-def sync_dir_meta(hdlr_mod, logger, session, meta, **options):
+def sync_dir_meta(meta, asession, **options):
     pass
 
-def sync_data_from_dir(meta, logger, content, **options):
+def sync_metadata_from_dir(meta, **options):
+    sync_data_from_dir(meta, metadata_only=True, **options)
+
+def sync_data_from_dir(meta, metadata_only=False, **options):
     target = meta["target"]
     path = meta["path"]
-    hdlr_mod = get_hdlr_mod(meta)
-    session = irods_session(hdlr_mod, meta, logger, **options)
+
+    event_handler = custom_event_handler(meta)
+    session = irods_session(event_handler.get_module(), meta, **options)
     exists = session.collections.exists(target)
 
-    if hasattr(hdlr_mod, "operation"):
-        op = hdlr_mod.operation(session, meta, **options)
-    else:
-        op = Operation.REGISTER_SYNC
-
+    op = event_handler.operation(session, **options)
     if op == Operation.NO_OP:
         if not exists:
-            call(hdlr_mod, "on_coll_create", no_op, logger, hdlr_mod, logger, session, meta, **options)
+            event_handler.call("on_coll_create", no_op, meta, session, **options)
         else:
-            call(hdlr_mod, "on_coll_modify", no_op, logger, hdlr_mod, logger, session, meta, **options)
+            event_handler.call("on_coll_modify", no_op, meta, session, **options)
     else:
+        if op is None:
+            op = Operation.REGISTER_SYNC
+
         if not exists:
-            create_dirs(hdlr_mod, logger, session, meta, **options)
+            create_dirs(meta, session, **options)
         else:
-            call(hdlr_mod, "on_coll_modify", sync_dir_meta, logger, hdlr_mod, logger, session, meta, **options)
+            # TODO: What is the use case for sync_dir_meta (empty function)?
+            event_handler.call("on_coll_modify", sync_dir_meta, meta, session, **options)
     start_timer()
 
-def sync_metadata_from_dir(meta, logger, **options):
-    sync_data_from_dir(meta, logger, False, **options)

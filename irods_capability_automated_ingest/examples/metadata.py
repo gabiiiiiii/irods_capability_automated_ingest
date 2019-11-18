@@ -8,7 +8,7 @@ filesystem_mode = 'filesystem::mode'
 class event_handler(Core):
 
     @staticmethod
-    def post_data_obj_create(hdlr_mod, logger, session, meta, **options):
+    def post_data_obj_create(meta, session, **options):
         target = meta["target"]
         path = meta["path"]
         s = os.stat(path)
@@ -19,7 +19,7 @@ class event_handler(Core):
 
 
     @staticmethod
-    def post_data_obj_modify(hdlr_mod, logger, session, meta, **options):
+    def post_data_obj_modify(meta, session, **options):
         target = meta["target"]
         path = meta["path"]
         s = os.stat(path)

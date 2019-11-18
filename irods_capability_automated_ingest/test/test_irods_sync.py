@@ -14,9 +14,9 @@ from irods.session import iRODSSession
 from irods.models import Collection, DataObject
 from tempfile import NamedTemporaryFile, mkdtemp
 from datetime import datetime
-from irods_capability_automated_ingest.sync_utils import size, get_with_key, app, failures_key, retries_key
+from irods_capability_automated_ingest.sync_utils import size, app
 from irods_capability_automated_ingest.sync_utils import get_redis as sync_utils_get_redis
-from irods_capability_automated_ingest.sync_task import done
+from irods_capability_automated_ingest.sync_job import sync_job
 
 LOG_FILE = "/tmp/a"
 
@@ -151,7 +151,7 @@ def wait_for(workers, job_name = DEFAULT_JOB_NAME):
             active = 0
         else:
             active = sum(map(len, act.values()))
-        d = done(r, job_name)
+        d = sync_job(job_name, r).done()
         if restart != 0 or active != 0 or not d:
             time.sleep(1)
         else:
@@ -342,12 +342,10 @@ class automated_ingest_test_context(object):
                 self.assertIn(obj.replicas[0].resource_name, resc_names)
 
     def do_assert_failed_queue(self, error_message=None, count=NFILES, job_name = DEFAULT_JOB_NAME):
-        r = get_redis()
-        self.assertEqual(get_with_key(r, failures_key, job_name, int), count)
+        self.assertEqual(sync_job(job_name, get_redis()).failures_handle().get_value(), count)
 
     def do_assert_retry_queue(self, error_message=None, count=NFILES, job_name = DEFAULT_JOB_NAME):
-        r = get_redis()
-        self.assertEqual(get_with_key(r, retries_key, job_name, int), count)
+        self.assertEqual(sync_job(job_name, get_redis()).retries_handle().get_value(), count)
 
 
 class Test_event_handlers(automated_ingest_test_context, unittest.TestCase):
@@ -1320,9 +1318,15 @@ class Test_register(automated_ingest_test_context, unittest.TestCase):
         self.do_assert_retry_queue(count=None, job_name=job_name)
 
     def do_register_to_invalid_zone(self, target_collection, job_name = DEFAULT_JOB_NAME):
-        subprocess.check_output(
-            ["python", "-m", IRODS_SYNC_PY, "start", PATH_TO_SOURCE_DIR, target_collection, "--job_name", job_name, "--log_level", "INFO", '--files_per_task', '1'],
-            stderr=subprocess.PIPE)
+        try:
+            subprocess.check_output(
+                ["python", "-m", IRODS_SYNC_PY, "start", PATH_TO_SOURCE_DIR, target_collection, "--job_name", job_name, "--log_level", "INFO", '--files_per_task', '1'],
+                stderr=subprocess.PIPE)
+        except subprocess.CalledProcessError as e:
+            print('returncode:'+str(e.returncode))
+            print('stdout:'+str(e.stdout))
+            print('stderr:'+str(e.stderr))
+            raise
         workers = start_workers(1)
         wait_for(workers, job_name)
         count_of_dir_and_files = NFILES + 1
@@ -1424,13 +1428,11 @@ class Test_irods_sync_UnicodeEncodeError(unittest.TestCase):
         mtime2 = modify_time(session, self.expected_logical_path)
         self.assertEqual(datetime.utcfromtimestamp(mtime1), mtime2)
 
-    def do_assert_failed_queue(self, error_message=None, job_name=DEFAULT_JOB_NAME, count=NFILES):
-        r = get_redis()
-        self.assertEqual(get_with_key(r, failures_key, job_name, int), count)
+    def do_assert_failed_queue(self, error_message=None, count=NFILES, job_name = DEFAULT_JOB_NAME):
+        self.assertEqual(sync_job(job_name, get_redis()).failures_handle().get_value(), count)
 
-    def do_assert_retry_queue(self, error_message=None, job_name=DEFAULT_JOB_NAME, count=NFILES):
-        r = get_redis()
-        self.assertEqual(get_with_key(r, retries_key, job_name, int), count)
+    def do_assert_retry_queue(self, error_message=None, count=NFILES, job_name = DEFAULT_JOB_NAME):
+        self.assertEqual(sync_job(job_name, get_redis()).retries_handle().get_value(), count)
 
     def create_bad_file(self):
         if os.path.exists(self.bad_filepath):
