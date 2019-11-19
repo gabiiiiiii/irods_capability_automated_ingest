@@ -1,4 +1,4 @@
-from . import sync_logging, sync_irods
+from . import sync_logging, sync_irods, sync_actions
 from .sync_utils import app, cleanup_key, count_key, dequeue_key, \
     done, failures_key, get_redis, \
     get_with_key, reset_with_key, retries_key, \
@@ -9,7 +9,6 @@ from uuid import uuid1
 import json
 import progressbar
 import redis_lock
-import sync_actions
 import time
 
 def interrupt(r, job_name, cli=True, terminate=True):
