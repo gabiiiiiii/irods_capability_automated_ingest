@@ -85,7 +85,7 @@ def handle_watch(args):
 
 
 def handle_list(args):
-    jobs = sync_actions.list_job(get_config(args))
+    jobs = sync_actions.list_jobs(get_config(args))
     print(json.dumps(jobs))
     return 0
 
