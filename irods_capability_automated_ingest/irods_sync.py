@@ -73,19 +73,19 @@ def handle_start(args):
     data['exclude_directory_name'] = [ ''.join(r) for r in args.exclude_directory_name ]
     data['idle_disconnect_seconds'] = args.irods_idle_disconnect_seconds
 
-    return sync_actions.start(data)
+    return sync_actions.start_job(data)
 
 def handle_stop(args):
-    sync_actions.stop(args.job_name, get_config(args))
+    sync_actions.stop_job(args.job_name, get_config(args))
     return 0
 
 
 def handle_watch(args):
-    return sync_actions.monitor(args.job_name, True, get_config(args))
+    return sync_actions.monitor_job(args.job_name, True, get_config(args))
 
 
 def handle_list(args):
-    jobs = sync_actions.list(get_config(args))
+    jobs = sync_actions.list_job(get_config(args))
     print(json.dumps(jobs))
     return 0
 

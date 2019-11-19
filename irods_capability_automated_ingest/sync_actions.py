@@ -31,7 +31,7 @@ def interrupt(r, job_name, cli=True, terminate=True):
     reset_with_key(r, stop_key, job_name)
 
 
-def stop(job_name, config):
+def stop_job(job_name, config):
     logger = sync_logging.get_sync_logger(config["log"])
 
     r = get_redis(config)
@@ -43,13 +43,13 @@ def stop(job_name, config):
             interrupt(r, job_name)
             cleanup(r, job_name)
 
-def list(config):
+def list_jobs(config):
     r = get_redis(config)
     with redis_lock.Lock(r, "lock:periodic"):
         return {"periodic":list(map(lambda job_id: job_id.decode("utf-8"), r.lrange("periodic", 0, -1))),
                 "singlepass":list(map(lambda job_id: job_id.decode("utf-8"), r.lrange("singlepass", 0, -1)))}
 
-def monitor(job_name, progress, config):
+def monitor_job(job_name, progress, config):
     logger = sync_logging.get_sync_logger(config["log"])
 
     r = get_redis(config)
@@ -98,7 +98,7 @@ def monitor(job_name, progress, config):
     else:
         return 0
 
-def start(data):
+def start_job(data):
     config = data["config"]
     logging_config = config["log"]
     root = data["root"]
@@ -172,5 +172,5 @@ def start(data):
                 cleanup(r, job_name)
                 return -1
             else:
-                return sync_actions.monitor(job_name, progress, config)
+                return sync_actions.monitor_job(job_name, progress, config)
 
