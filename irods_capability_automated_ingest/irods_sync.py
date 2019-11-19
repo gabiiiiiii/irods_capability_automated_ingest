@@ -1,5 +1,5 @@
-import sync_actions
 from uuid import uuid1
+from . import sync_actions
 import argparse
 import json
 import sys
