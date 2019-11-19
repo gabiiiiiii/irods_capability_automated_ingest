@@ -1,7 +1,7 @@
 from . import sync_logging, sync_irods
-from .sync_utils import app, cleanup_key, count_key, dequeue_key,
-    done, failures_key, get_redis,
-    get_with_key, reset_with_key, retries_key,
+from .sync_utils import app, cleanup_key, count_key, dequeue_key, \
+    done, failures_key, get_redis, \
+    get_with_key, reset_with_key, retries_key, \
     set_with_key, stop_key, tasks_key
 from .sync_task import cleanup, periodic, restart
 from os.path import realpath
