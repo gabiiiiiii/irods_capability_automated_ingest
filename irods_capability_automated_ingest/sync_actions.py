@@ -1,9 +1,7 @@
-from . import sync_logging, sync_irods, sync_actions
-from .sync_utils import app, cleanup_key, count_key, dequeue_key, \
-    done, failures_key, get_redis, \
-    get_with_key, reset_with_key, retries_key, \
-    set_with_key, stop_key, tasks_key
-from .sync_task import cleanup, periodic, restart
+from . import sync_logging, sync_irods
+from .sync_job import sync_job
+from .sync_utils import get_redis
+from .sync_task import restart
 from os.path import realpath
 from uuid import uuid1
 import json
@@ -11,37 +9,18 @@ import progressbar
 import redis_lock
 import time
 
-def interrupt(r, job_name, cli=True, terminate=True):
-    set_with_key(r, stop_key, job_name, "")
-    tasks = list(map(lambda x: x.decode("utf-8"), r.lrange(count_key(job_name), 0, -1)))
-    tasks2 = set(map(lambda x: x.decode("utf-8"), r.lrange(dequeue_key(job_name), 0, -1)))
-
-    tasks = [item for item in tasks if item not in tasks2]
-
-    if cli:
-        tasks = progressbar.progressbar(tasks, max_value=len(tasks))
-
-    # stop active tasks for this job
-    for task in tasks:
-        app.control.revoke(task, terminate=terminate)
-
-    # stop restart job
-    app.control.revoke(job_name)
-
-    reset_with_key(r, stop_key, job_name)
-
 
 def stop_job(job_name, config):
     logger = sync_logging.get_sync_logger(config["log"])
-
     r = get_redis(config)
     with redis_lock.Lock(r, "lock:periodic"):
-        if get_with_key(r, cleanup_key, job_name, str) is None:
+        job = sync_job(job_name, r)
+        if job.cleanup_handle().get_value() is None:
             logger.error("job [{0}] does not exist".format(job_name))
             raise Exception("job [{0}] does not exist".format(job_name))
         else:
-            interrupt(r, job_name)
-            cleanup(r, job_name)
+            job.interrupt()
+            job.cleanup()
 
 def list_jobs(config):
     r = get_redis(config)
@@ -52,10 +31,10 @@ def list_jobs(config):
 def monitor_job(job_name, progress, config):
     logger = sync_logging.get_sync_logger(config["log"])
 
-    r = get_redis(config)
-    if get_with_key(r, cleanup_key, job_name, str) is None:
-        logger.error("job [{0}] does not exist".format(job_name))
-        raise Exception("job [{0}] does not exist".format(job_name))
+    job = sync_job(job_name, get_redis(config))
+    if job.cleanup_handle().get_value() is None:
+        logger.error("job [{0}] does not exist".format(job.name()))
+        raise Exception("job [{0}] does not exist".format(job.name()))
 
     if progress:
         widgets = [
@@ -70,29 +49,42 @@ def monitor_job(job_name, progress, config):
 
         with progressbar.ProgressBar(max_value=1, widgets=widgets, redirect_stdout=True, redirect_stderr=True) as bar:
             def update_pbar():
-                total2 = get_with_key(r, tasks_key, job_name, int)
-                total = r.llen(count_key(job_name))
+                tasks = job.tasks_handle().get_value()
+                if tasks is None:
+                    tasks = 0
+                else:
+                    tasks = int(tasks)
+                total = job.count_handle().llen()
                 if total == 0:
                     percentage = 0
                 else:
-                    percentage = max(0, min(1, (total - total2) / total))
+                    percentage = max(0, min(1, (total - tasks) / total))
 
-                failures = get_with_key(r, failures_key, job_name, int)
-                retries = get_with_key(r, retries_key, job_name, int)
+                failures = job.failures_handle().get_value()
+                if failures is None:
+                    failures = 0
+                else:
+                    failures = int(failures)
 
-                bar.update(percentage, count=total, tasks=total2, failures=failures, retries=retries)
+                retries = job.retries_handle().get_value()
+                if retries is None:
+                    retries = 0
+                else:
+                    retries = int(retries)
 
-            while not done(r, job_name) or periodic(r, job_name):
+                bar.update(percentage, count=total, tasks=tasks, failures=failures, retries=retries)
+
+            while not job.done() or job.periodic():
                 update_pbar()
                 time.sleep(1)
 
             update_pbar()
 
     else:
-        while not done(r, job_name) or periodic(r, job_name):
+        while not job.done() or job.periodic():
             time.sleep(1)
 
-    failures = get_with_key(r, failures_key, job_name, int)
+    failures = job.failures_handle().get_value()
     if failures != 0:
         return -1
     else:
@@ -133,7 +125,7 @@ def start_job(data):
 
     sync_irods.validate_target_collection(data_copy, logger)
 
-    def store_event_handler(data):
+    def store_event_handler(data, job):
         event_handler = data.get("event_handler")
         event_handler_data = data.get("event_handler_data")
         event_handler_path = data.get("event_handler_path")
@@ -147,15 +139,16 @@ def start_job(data):
             data["event_handler"] = event_handler
         else:
             cleanup_list = []
-        set_with_key(r, cleanup_key, job_name, json.dumps(cleanup_list))
+        job.cleanup_handle().set_value(json.dumps(cleanup_list))
 
     r = get_redis(config)
+    job = sync_job.from_meta(data_copy)
     with redis_lock.Lock(r, "lock:periodic"):
-        if get_with_key(r, cleanup_key, job_name, str) is not None:
+        if job.cleanup_handle().get_value() is not None:
             logger.error("job {0} already exists".format(job_name))
             raise Exception("job {0} already exists".format(job_name))
 
-        store_event_handler(data_copy)
+        store_event_handler(data_copy, job)
 
     if interval is not None:
         r.rpush("periodic", job_name.encode("utf-8"))
@@ -169,8 +162,8 @@ def start_job(data):
             res = restart.s(data_copy).apply()
             if res.failed():
                 print(res.traceback)
-                cleanup(r, job_name)
+                job.cleanup()
                 return -1
             else:
-                return sync_actions.monitor_job(job_name, progress, config)
+                return monitor_job(job_name, progress, config)
 
