@@ -4,6 +4,8 @@ import time
 import traceback
 
 MAX_RETRIES = 10
+
+#TODO: Consider compression/hashing of key_category and identifier
 class redis_key_handle(object):
     #def __init__(self, logger, redis_handle, key_category, identifier, delimiter=':/'):
     def __init__(self, redis_handle, key_category, identifier, delimiter=':/'):
@@ -77,6 +79,7 @@ class list_redis_key_handle(redis_key_handle):
     def llen(self):
         return self.retry(self.redis_handle.llen, self.get_key())
 
+# TODO: python metaclasses - see PRC
 # sync_time_key - float with last time particular path was sync'd
 class sync_time_key_handle(redis_key_handle):
     def __init__(self, redis_handle, path):
