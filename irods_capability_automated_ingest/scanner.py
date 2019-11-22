@@ -488,6 +488,9 @@ class s3_scanner(scanner):
                 lock.release()
 
 def scanner_factory(meta):
+    # TODO: Look into passing a string as a type... modularize scanners and import as needed
+    # TODO: Talk to Dan about eval()
     if meta.get('s3_keypair'):
         return s3_scanner(meta)
     return filesystem_scanner(meta)
+
