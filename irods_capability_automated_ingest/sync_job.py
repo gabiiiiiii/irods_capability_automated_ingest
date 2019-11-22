@@ -39,6 +39,7 @@ class sync_job(object):
 
     def done(self):
         task_count = self.tasks_handle().get_value()
+        #return task_count is not None and task_count != 0
         return task_count is None or task_count == 0
 
     def periodic(self):
@@ -84,3 +85,5 @@ class sync_job(object):
         app.control.revoke(self.job_name)
         self.stop_handle().reset()
 
+    def is_stopping(self):
+        return self.stop_handle().get_value() is not None

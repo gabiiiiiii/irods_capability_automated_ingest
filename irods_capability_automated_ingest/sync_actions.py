@@ -123,7 +123,7 @@ def start_job(data):
     data_copy["root"] = root_abs
     data_copy["path"] = root_abs
 
-    sync_irods.validate_target_collection(data_copy, logger)
+    sync_irods.validate_target_collection(data_copy)
 
     def store_event_handler(data, job):
         event_handler = data.get("event_handler")

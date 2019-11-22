@@ -1,9 +1,10 @@
 import importlib
+from . import sync_logging
 
 class custom_event_handler(object):
     def __init__(self, meta):
         self.meta = meta.copy()
-        self.logger = self.meta['config']['log']
+        self.logger = sync_logging.get_sync_logger(self.meta['config']['log'])
 
     def get_module(self):
         key = 'event_handler'
@@ -16,49 +17,46 @@ class custom_event_handler(object):
         module = self.get_module()
         return module is not None and hasattr(module, attr)
 
-    def call(self, hdlr, logger, func, *args, **options):
+    def call(self, event_function_name, irods_sync_function, *args, **options):
         module = self.get_module()
-        if self.hasattr(hdlr):
-            logger.debug("calling " + hdlr + " event handler: args = " + str(args) + ", options = " + str(options))
-            getattr(module, hdlr)(func, *args, **options)
+        if self.hasattr(event_function_name):
+            self.logger.debug("calling [" + event_function_name + "] in event handler: args = " + str(args) + ", options = " + str(options))
+            getattr(module, event_function_name)(irods_sync_function, *args, **options)
         else:
-            func(*args, **options)
+            irods_sync_function(*args, **options)
 
     # attribute getters
     def max_retries(self):
-        module = self.get_module()
         if self.hasattr('max_retries'):
+            module = self.get_module()
             return module.max_retries(module, self.logger, self.meta)
         return 0
 
     def timeout(self):
-        module = self.get_module()
         if self.hasattr('timeout'):
+            module = self.get_module()
             return module.timeout(module, self.logger, self.meta)
         return 3600
 
     def delay(self, retries):
-        module = self.get_module()
         if self.hasattr('delay'):
+            module = self.get_module()
             return module.delay(module, self.logger, self.meta, retries)
         return 0
 
     def operation(self, session, **options):
-        module = self.get_module()
         if self.hasattr("operation"):
-            return module.operation(session, self.meta, **options)
+            return self.get_module().operation(session, self.meta, **options)
         #return Operation.REGISTER_SYNC
         return None
 
     def to_resource(self, session, **options):
-        module = self.get_module()
         if self.hasattr("to_resource"):
-            return module.to_resource(session, self.meta, **options)
+            return self.get_module().to_resource(session, self.meta, **options)
         return None
 
     def target_path(self, session, **options):
-        module = self.get_module()
         if self.hasattr("target_path"):
-            return module.target_path(session, self.meta, **options)
+            return self.get_module().target_path(session, self.meta, **options)
         return None
 
