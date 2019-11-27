@@ -208,7 +208,7 @@ def update_metadata(event_handler, logger, session, meta, **options):
 
     data_obj_info = {"objPath": dest_dataobj_logical_fullpath}
 
-    resc_name = event_handler.to_resource(session, **options)
+    resc_name = get_resource_name(event_handler, session, meta, **options)
     outdated_repl_nums = []
     found = False
     if resc_name is None:
@@ -372,7 +372,8 @@ def sync_data_from_file(meta, logger, content, **options):
             op = Operation.REGISTER_SYNC
         createRepl = False
         if exists and op == Operation.REGISTER_AS_REPLICA_SYNC:
-            resc_name = event_handler.to_resource(session, **options)
+            #resc_name = event_handler.to_resource(session, **options)
+            resc_name = get_resource_name(event_handler, session, meta, **options)
             if resc_name is None:
                 raise Exception("no resource name defined")
 
