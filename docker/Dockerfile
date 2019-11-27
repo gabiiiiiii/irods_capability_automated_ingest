@@ -1,6 +1,8 @@
 FROM python:3.5
 
-RUN pip install irods-capability-automated-ingest
+ARG PIP_PACKAGE="irods-capability-automated-ingest"
+
+RUN pip install ${PIP_PACKAGE}
 
 COPY irods_environment.json /
 
