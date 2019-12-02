@@ -38,10 +38,11 @@ def child_of(session, child_resc_name, resc_name):
         return False
 
 
-def create_dirs(event_handler, logger, session, meta, **options):
+def create_dirs(logger, session, meta, **options):
     target = meta["target"]
     path = meta["path"]
     config = meta["config"]
+    event_handler = custom_event_handler(meta)
     if target.startswith("/"):
         r = get_redis(config)
         if not session.collections.exists(target):
@@ -50,25 +51,18 @@ def create_dirs(event_handler, logger, session, meta, **options):
                     meta2 = meta.copy()
                     meta2["target"] = dirname(target)
                     meta2["path"] = dirname(path)
-                    create_dirs(event_handler, logger, session, meta2, **options)
+                    create_dirs(logger, session, meta2, **options)
 
                     event_handler.call("on_coll_create", logger, create_dir, event_handler.get_module(), logger, session, meta, **options)
     else:
         raise Exception("create_dirs: relative path; target:[" + target + ']; path:[' + path + ']')
 
 
-def create_dir(hdlr_mod, logger, session, meta, **options):
+def create_dir(logger, session, meta, **options):
     target = meta["target"]
     path = meta["path"]
     logger.info("creating collection " + target)
     session.collections.create(target)
-
-
-def get_resource_name(event_handler, session, meta, **options):
-    if event_handler is not None and event_handler.hasattr("to_resource"):
-        return event_handler.to_resource(session, meta, **options)
-    else:
-        return None
 
 
 def annotate_metadata_for_special_data_objs(meta, session, source_physical_fullpath, dest_dataobj_logical_fullpath):
@@ -86,11 +80,12 @@ def annotate_metadata_for_special_data_objs(meta, session, source_physical_fullp
         obj.metadata.add('link_target', link_target, 'automated_ingest')
 
 
-def register_file(event_handler, logger, session, meta, **options):
+def register_file(logger, session, meta, **options):
     dest_dataobj_logical_fullpath = meta["target"]
     source_physical_fullpath = meta["path"]
     b64_path_str = meta.get('b64_path_str')
 
+    event_handler = custom_event_handler(meta)
     if event_handler is None:
         phypath_to_register_in_catalog = None
     else:
@@ -101,8 +96,7 @@ def register_file(event_handler, logger, session, meta, **options):
         else:
             phypath_to_register_in_catalog = source_physical_fullpath
 
-    resc_name = get_resource_name(event_handler, session, meta, **options)
-
+    resc_name = event_handler.to_resource(session, **options)
     if resc_name is not None:
         options["destRescName"] = resc_name
 
@@ -119,13 +113,13 @@ def register_file(event_handler, logger, session, meta, **options):
 
     annotate_metadata_for_special_data_objs(meta, session, source_physical_fullpath, dest_dataobj_logical_fullpath)
 
-def upload_file(hdlr_mod, logger, session, meta, **options):
+def upload_file(logger, session, meta, **options):
     dest_dataobj_logical_fullpath = meta["target"]
     source_physical_fullpath = meta["path"]
     b64_path_str = meta.get('b64_path_str')
 
-    resc_name = get_resource_name(hdlr_mod, session, meta, **options)
-
+    event_handler = custom_event_handler(meta)
+    resc_name = event_handler.to_resource(session, **options)
     if resc_name is not None:
         options["destRescName"] = resc_name
 
@@ -140,17 +134,17 @@ def upload_file(hdlr_mod, logger, session, meta, **options):
     annotate_metadata_for_special_data_objs(meta, session, source_physical_fullpath, dest_dataobj_logical_fullpath)
 
 
-def no_op(hdlr_mod, logger, session, meta, **options):
+def no_op(logger, session, meta, **options):
     pass
 
 
-def sync_file(hdlr_mod, logger, session, meta, **options):
+def sync_file(logger, session, meta, **options):
     dest_dataobj_logical_fullpath = meta["target"]
     source_physical_fullpath = meta["path"]
     b64_path_str = meta.get('b64_path_str')
 
-    resc_name = get_resource_name(hdlr_mod, session, meta, **options)
-
+    event_handler = custom_event_handler(meta)
+    resc_name = event_handler.to_resource(session, **options)
     if resc_name is not None:
         options["destRescName"] = resc_name
 
@@ -158,7 +152,7 @@ def sync_file(hdlr_mod, logger, session, meta, **options):
         source_physical_fullpath = base64.b64decode(b64_path_str)
 
     logger.info("syncing object " + dest_dataobj_logical_fullpath + ", options = " + str(options))
-    op = hdlr_mod.operation(session, meta, **options)
+    op = event_handler.operation(session, meta, **options)
 
     if op == Operation.PUT_APPEND:
         BUFFER_SIZE = 1024
@@ -184,13 +178,11 @@ def sync_file(hdlr_mod, logger, session, meta, **options):
         logger.info("succeeded", task="irods_update_file", path = source_physical_fullpath)
 
 
-def update_metadata(event_handler, logger, session, meta, **options):
+def update_metadata(logger, session, meta, **options):
     dest_dataobj_logical_fullpath = meta["target"]
     source_physical_fullpath = meta["path"]
-    if event_handler is None:
-        phypath_to_register_in_catalog = None
-    else:
-        phypath_to_register_in_catalog = event_handler.target_path(session, **options)
+    event_handler = custom_event_handler(meta)
+    phypath_to_register_in_catalog = event_handler.target_path(session, **options)
     b64_path_str = meta.get('b64_path_str')
     if phypath_to_register_in_catalog is None:
         if b64_path_str is not None:
@@ -208,9 +200,10 @@ def update_metadata(event_handler, logger, session, meta, **options):
 
     data_obj_info = {"objPath": dest_dataobj_logical_fullpath}
 
-    resc_name = get_resource_name(event_handler, session, meta, **options)
     outdated_repl_nums = []
     found = False
+
+    resc_name = event_handler.to_resource(session, **options)
     if resc_name is None:
         found = True
     else:
@@ -237,7 +230,7 @@ def update_metadata(event_handler, logger, session, meta, **options):
         logger.info("succeeded", task="irods_update_metadata", path = source_physical_fullpath)
 
 
-def sync_file_meta(hdlr_mod, logger, session, meta, **options):
+def sync_file_meta(logger, session, meta, **options):
     pass
 
 irods_session_map = {}
@@ -345,9 +338,7 @@ def sync_data_from_file(meta, logger, content, **options):
     init = meta["initial_ingest"]
 
     event_handler = custom_event_handler(meta)
-    # TODO: might not need the module here as it is contained in the event_handler object
-    hdlr_mod = event_handler.get_module()
-    session = irods_session(hdlr_mod, meta, logger, **options)
+    session = irods_session(event_handler.get_module(), meta, logger, **options)
     #session = irods_session(event_handler.get_module(), meta, logger, **options)
 
     if init:
@@ -364,16 +355,15 @@ def sync_data_from_file(meta, logger, content, **options):
 
     if op == Operation.NO_OP:
         if not exists:
-            event_handler.call("on_data_obj_create", logger, no_op, hdlr_mod, logger, session, meta, **options)
+            event_handler.call("on_data_obj_create", logger, no_op, logger, session, meta, **options)
         else:
-            event_handler.call("on_data_obj_modify", logger, no_op, hdlr_mod, logger, session, meta, **options)
+            event_handler.call("on_data_obj_modify", logger, no_op, logger, session, meta, **options)
     else:
         if op is None:
             op = Operation.REGISTER_SYNC
         createRepl = False
         if exists and op == Operation.REGISTER_AS_REPLICA_SYNC:
-            #resc_name = event_handler.to_resource(session, **options)
-            resc_name = get_resource_name(event_handler, session, meta, **options)
+            resc_name = event_handler.to_resource(session, **options)
             if resc_name is None:
                 raise Exception("no resource name defined")
 
@@ -397,24 +387,24 @@ def sync_data_from_file(meta, logger, content, **options):
             meta2["target"] = dirname(target)
             if 'b64_path_str' not in meta2:
                 meta2["path"] = dirname(path)
-            create_dirs(event_handler, logger, session, meta2, **options)
+            create_dirs(logger, session, meta2, **options)
             if put:
-                event_handler.call("on_data_obj_create", logger, upload_file, hdlr_mod, logger, session, meta, **options)
+                event_handler.call("on_data_obj_create", logger, upload_file, logger, session, meta, **options)
             else:
-                event_handler.call("on_data_obj_create", logger, register_file, hdlr_mod, logger, session, meta, **options)
+                event_handler.call("on_data_obj_create", logger, register_file, logger, session, meta, **options)
         elif createRepl:
             options["regRepl"] = ""
 
-            event_handler.call("on_data_obj_create", logger, register_file, hdlr_mod, logger, session, meta, **options)
+            event_handler.call("on_data_obj_create", logger, register_file, logger, session, meta, **options)
         elif content:
             if put:
                 sync = op in [Operation.PUT_SYNC, Operation.PUT_APPEND]
                 if sync:
-                    event_handler.call("on_data_obj_modify", logger, sync_file, hdlr_mod, logger, session, meta, **options)
+                    event_handler.call("on_data_obj_modify", logger, sync_file, logger, session, meta, **options)
             else:
-                event_handler.call("on_data_obj_modify", logger, update_metadata, hdlr_mod, logger, session, meta, **options)
+                event_handler.call("on_data_obj_modify", logger, update_metadata, logger, session, meta, **options)
         else:
-            event_handler.call("on_data_obj_modify", logger, sync_file_meta, hdlr_mod, logger, session, meta, **options)
+            event_handler.call("on_data_obj_modify", logger, sync_file_meta, logger, session, meta, **options)
 
     start_timer()
 
@@ -429,25 +419,23 @@ def sync_data_from_dir(meta, logger, content, **options):
     path = meta["path"]
 
     event_handler = custom_event_handler(meta)
-    # TODO: might not need the module here as it is contained in the event_handler object
-    hdlr_mod = event_handler.get_module()
-    session = irods_session(hdlr_mod, meta, logger, **options)
+    session = irods_session(event_handler.get_module(), meta, logger, **options)
     exists = session.collections.exists(target)
 
     op = event_handler.operation(session, **options)
     if op == Operation.NO_OP:
         if not exists:
-            event_handler.call("on_coll_create", logger, no_op, hdlr_mod, logger, session, meta, **options)
+            event_handler.call("on_coll_create", logger, no_op, logger, session, meta, **options)
         else:
-            event_handler.call("on_coll_modify", logger, no_op, hdlr_mod, logger, session, meta, **options)
+            event_handler.call("on_coll_modify", logger, no_op, logger, session, meta, **options)
     else:
         if op is None:
             op = Operation.REGISTER_SYNC
 
         if not exists:
-            create_dirs(event_handler, logger, session, meta, **options)
+            create_dirs(logger, session, meta, **options)
         else:
-            event_handler.call("on_coll_modify", logger, sync_dir_meta, hdlr_mod, logger, session, meta, **options)
+            event_handler.call("on_coll_modify", logger, sync_dir_meta, logger, session, meta, **options)
     start_timer()
 
 def sync_metadata_from_dir(meta, logger, **options):
