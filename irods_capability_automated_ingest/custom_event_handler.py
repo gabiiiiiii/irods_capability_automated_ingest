@@ -26,39 +26,33 @@ class custom_event_handler(object):
 
     # attribute getters
     def max_retries(self):
-        module = self.get_module()
         if self.hasattr('max_retries'):
-            return module.max_retries(module, self.logger, self.meta)
+            return self.get_module().max_retries(module, self.logger, self.meta)
         return 0
 
     def timeout(self):
-        module = self.get_module()
         if self.hasattr('timeout'):
-            return module.timeout(module, self.logger, self.meta)
+            return self.get_module().timeout(module, self.logger, self.meta)
         return 3600
 
     def delay(self, retries):
-        module = self.get_module()
         if self.hasattr('delay'):
-            return module.delay(module, self.logger, self.meta, retries)
+            return self.get_module().delay(module, self.logger, self.meta, retries)
         return 0
 
     def operation(self, session, **options):
-        module = self.get_module()
         if self.hasattr("operation"):
-            return module.operation(session, self.meta, **options)
+            return self.get_module().operation(session, self.meta, **options)
         #return Operation.REGISTER_SYNC
         return None
 
     def to_resource(self, session, **options):
-        module = self.get_module()
         if self.hasattr("to_resource"):
-            return module.to_resource(session, self.meta, **options)
+            return self.get_module().to_resource(session, self.meta, **options)
         return None
 
     def target_path(self, session, **options):
-        module = self.get_module()
         if self.hasattr("target_path"):
-            return module.target_path(session, self.meta, **options)
+            return self.get_module().target_path(session, self.meta, **options)
         return None
 
