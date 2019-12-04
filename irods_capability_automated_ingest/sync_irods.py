@@ -18,14 +18,6 @@ def validate_target_collection(meta, logger):
     if destination_collection_logical_path == "/":
         raise Exception("Root may only contain collections which represent zones")
 
-    # zone names reside in root in an iRODS logical path and should already exist
-    zone_name = destination_collection_logical_path.strip('/').split('/')[0]
-    logger.info('checking existence of collection for zone:[' + zone_name + ']')
-    hdlr_mod = get_hdlr_mod(meta)
-    session = irods_session(hdlr_mod, meta, logger)
-    if not session.collections.exists('/' + zone_name):
-        raise Exception("Invalid zone name in destination collection path")
-
 def child_of(session, child_resc_name, resc_name):
     if child_resc_name == resc_name:
         return True
