@@ -1,0 +1,3 @@
+FROM ingest:latest
+
+ENTRYPOINT ["python", "-m", "irods_capability_automated_ingest.test.test_irods_sync"]
