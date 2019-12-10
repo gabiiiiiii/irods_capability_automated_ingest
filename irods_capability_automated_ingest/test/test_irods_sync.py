@@ -632,24 +632,28 @@ class Test_irods_sync(TestCase):
         self.do_assert_failed_queue(count=None)
         self.do_assert_retry_queue(count=None)
 
+    @unittest.skip('skip')
     def test_register_to_invalid_zone(self):
         self.do_run_invalid_target_collection_test(
             '/invalidZone/home/rods',
             'Invalid zone name in destination collection path',
             job_name = 'test_register_to_invalid_zone')
 
+    @unittest.skip('skip')
     def test_register_to_existing_zone_substring(self):
         self.do_run_invalid_target_collection_test(
             '/tempZ/home/rods',
             'Invalid zone name in destination collection path',
             job_name = 'test_register_to_existing_zone_substring')
 
+    @unittest.skip('skip')
     def test_register_to_existing_zone_superstring(self):
         self.do_run_invalid_target_collection_test(
             '/tempZoneMore/home/rods',
             'Invalid zone name in destination collection path',
             job_name = 'test_register_to_existing_zone_superstring')
 
+    @unittest.skip('skip')
     def test_register_to_root_collection(self):
         self.do_run_invalid_target_collection_test(
             '/',
