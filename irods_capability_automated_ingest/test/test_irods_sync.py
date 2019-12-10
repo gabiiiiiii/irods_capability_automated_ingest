@@ -618,12 +618,14 @@ class Test_irods_sync(TestCase):
         self.do_assert_failed_queue(count=None)
         self.do_assert_retry_queue(count=None)
 
+    @unittest.skip('skip')
     def test_register_root_with_resc_name(self):
         self.do_register("irods_capability_automated_ingest.examples.register_root_with_resc_name", job_name = 'test_register_root_with_resc_name', resc_name = [REGISTER_RESC2A, REGISTER_RESC2B])
         self.do_assert_failed_queue(count=None)
         self.do_assert_retry_queue(count=None)
 
     @unittest.skipIf(IRODS_MAJOR < 4 or (IRODS_MAJOR == 4 and IRODS_MINOR < 3), "skip")
+    @unittest.skip('skip')
     def test_register_non_leaf_non_root_with_resc_name(self):
         self.do_register(
             'irods_capability_automated_ingest.examples.register_non_leaf_non_root_with_resc_name',
