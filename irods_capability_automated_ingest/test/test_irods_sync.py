@@ -823,13 +823,11 @@ class Test_irods_sync(TestCase):
 
     # put
 
-    @unittest.skip('skip')
     def test_put(self):
         self.do_put("irods_capability_automated_ingest.examples.put")
         self.do_assert_failed_queue(count=None)
         self.do_assert_retry_queue(count=None)
 
-    @unittest.skipIf(IRODS_MAJOR < 4 or (IRODS_MAJOR == 4 and IRODS_MINOR < 3), "skip")
     @unittest.skip('skip')
     def test_put_with_resc_name(self):
         self.do_put("irods_capability_automated_ingest.examples.put_with_resc_name", resc_names = [REGISTER_RESC2A], resc_roots = [REGISTER_RESC2A])
@@ -851,7 +849,6 @@ class Test_irods_sync(TestCase):
 
     # no sync
 
-    @unittest.skip('skip')
     def test_no_sync(self):
         self.do_put("irods_capability_automated_ingest.examples.put")
         self.do_no_sync("irods_capability_automated_ingest.examples.put")
@@ -859,7 +856,6 @@ class Test_irods_sync(TestCase):
         self.do_assert_retry_queue(count=None)
 
     @unittest.skipIf(IRODS_MAJOR < 4 or (IRODS_MAJOR == 4 and IRODS_MINOR < 3), "skip")
-    @unittest.skip('skip')
     def test_no_sync_with_resc_name(self):
         self.do_put("irods_capability_automated_ingest.examples.put_with_resc_name", resc_names = [REGISTER_RESC2A], resc_roots = [REGISTER_RESC2A])
         self.do_no_sync("irods_capability_automated_ingest.examples.put_with_resc_name")
@@ -883,7 +879,6 @@ class Test_irods_sync(TestCase):
 
     # sync
 
-    @unittest.skip('skip')
     def test_sync(self):
         self.do_put("irods_capability_automated_ingest.examples.sync")
         recreate_files(NFILES)
@@ -892,7 +887,6 @@ class Test_irods_sync(TestCase):
         self.do_assert_retry_queue(count=None)
 
     @unittest.skipIf(IRODS_MAJOR < 4 or (IRODS_MAJOR == 4 and IRODS_MINOR < 3), "skip")
-    @unittest.skip('skip')
     def test_sync_with_resc_name(self):
         self.do_put("irods_capability_automated_ingest.examples.sync_with_resc_name", resc_names = [REGISTER_RESC2A], resc_roots = [REGISTER_RESC_PATH2A])
         recreate_files(NFILES)
@@ -919,7 +913,6 @@ class Test_irods_sync(TestCase):
 
     # append
 
-    @unittest.skip('skip')
     def test_append(self):
         self.do_put("irods_capability_automated_ingest.examples.append")
         recreate_files(NFILES)
@@ -928,7 +921,6 @@ class Test_irods_sync(TestCase):
         self.do_assert_retry_queue(count=None)
 
     @unittest.skipIf(IRODS_MAJOR < 4 or (IRODS_MAJOR == 4 and IRODS_MINOR < 3), "skip")
-    @unittest.skip('skip')
     def test_append_with_resc_name(self):
         self.do_put("irods_capability_automated_ingest.examples.append_with_resc_name", resc_names = [REGISTER_RESC2A], resc_roots = [REGISTER_RESC_PATH2A])
         recreate_files(NFILES)
