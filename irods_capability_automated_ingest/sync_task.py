@@ -305,7 +305,7 @@ class filesystem_scanner(scanner):
                     sync_files_meta = meta.copy()
                     sync_files_meta['chunk'] = chunk
                     #task_queue(file_q_name).add(sync_files, sync_files_meta)
-                    sync_dir_meta['queue_name'] = file_q_name
+                    sync_files_meta['queue_name'] = file_q_name
                     enqueue_task(sync_files, sync_files_meta)
                     chunk.clear()
 

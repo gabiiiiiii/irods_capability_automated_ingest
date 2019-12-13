@@ -53,7 +53,7 @@ def create_dirs(logger, session, meta, **options):
                     meta2["path"] = dirname(path)
                     create_dirs(logger, session, meta2, **options)
 
-                    event_handler.call("on_coll_create", logger, create_dir, event_handler.get_module(), logger, session, meta, **options)
+                    event_handler.call("on_coll_create", logger, create_dir, logger, session, meta, **options)
     else:
         raise Exception("create_dirs: relative path; target:[" + target + ']; path:[' + path + ']')
 
