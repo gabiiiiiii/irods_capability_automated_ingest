@@ -181,10 +181,11 @@ celery -A irods_capability_automated_ingest.sync_task worker -l error -Q restart
 
 #### Run tests
 **Note:** The test suite requires Python version >=3.5.
-**Note:** The tests should be run without running Celery workers.
+**Note:** The tests should be run without running Celery workers or with an unused redis database.
 ```
 python -m irods_capability_automated_ingest.test.test_irods_sync
 ```
+See [docker/test/README.md](docker/test/README.md) for how to run in a dockerized environment.
 
 #### Start sync job
 ```

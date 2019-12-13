@@ -51,17 +51,11 @@ celery_broker_url="redis://${redis_host}:${redis_port}/${redis_db}"
 # docker run --name irods-box -d -v /mnt/ingest_test_mount:/tmp/testdir:ro --hostname icat.example.org irods_4.2.6
 if [[ ${irods_container} ]]; then
     container_links="--link ${irods_container}:${irods_host}"
-else
-    irods_container=irods-box
-    container_links="--link ${irods_container}:${irods_host}"
 fi
 
 # Running Redis
 # docker run --rm --name some-redis -d redis:4.0.8
 if [[ ${redis_container} ]]; then
-    container_links="${container_links} --link ${redis_container}:${redis_host}"
-else
-    redis_container=some-redis
     container_links="${container_links} --link ${redis_container}:${redis_host}"
 fi
 
