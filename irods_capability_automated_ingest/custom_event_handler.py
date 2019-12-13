@@ -19,7 +19,7 @@ class custom_event_handler(object):
     def call(self, hdlr, logger, func, *args, **options):
         module = self.get_module()
         if self.hasattr(hdlr):
-            logger.debug("calling " + hdlr + " event handler: args = " + str(args) + ", options = " + str(options))
+            logger.debug("calling [" + hdlr + "] in event handler: args = " + str(args) + ", options = " + str(options))
             getattr(module, hdlr)(func, *args, **options)
         else:
             func(*args, **options)

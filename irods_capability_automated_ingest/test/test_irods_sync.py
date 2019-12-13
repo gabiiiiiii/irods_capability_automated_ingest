@@ -343,10 +343,10 @@ class automated_ingest_test_context(object):
                 self.assertIn(obj.replicas[0].resource_name, resc_names)
 
     def do_assert_failed_queue(self, error_message=None, count=NFILES, job_name = DEFAULT_JOB_NAME):
-        self.assertEqual(sync_job(job_name, get_redis()).failures_key(), count)
+        self.assertEqual(sync_job(job_name, get_redis()).failures_handle().get_value(), count)
 
     def do_assert_retry_queue(self, error_message=None, count=NFILES, job_name = DEFAULT_JOB_NAME):
-        self.assertEqual(sync_job(job_name, get_redis()).retries_key(), count)
+        self.assertEqual(sync_job(job_name, get_redis()).retries_handle().get_value(), count)
 
 
 class Test_event_handlers(automated_ingest_test_context, unittest.TestCase):
@@ -1418,10 +1418,10 @@ class Test_irods_sync_UnicodeEncodeError(unittest.TestCase):
         self.assertEqual(datetime.utcfromtimestamp(mtime1), mtime2)
 
     def do_assert_failed_queue(self, error_message=None, count=NFILES, job_name = DEFAULT_JOB_NAME):
-        self.assertEqual(sync_job(job_name, get_redis()).failures_key(), count)
+        self.assertEqual(sync_job(job_name, get_redis()).failures_handle().get_value(), count)
 
     def do_assert_retry_queue(self, error_message=None, count=NFILES, job_name = DEFAULT_JOB_NAME):
-        self.assertEqual(sync_job(job_name, get_redis()).retries_key(), count)
+        self.assertEqual(sync_job(job_name, get_redis()).retries_handle().get_value(), count)
 
     def create_bad_file(self):
         if os.path.exists(self.bad_filepath):
