@@ -80,6 +80,6 @@ docker run \
     -e "CELERY_BROKER_URL=${celery_broker_url}" \
     ${container_links} \
     -v ${src_dir}:/data:ro \
-    -v ${s3_keypair}:/s3_keypair_file:ro \
+    -v ${s3_keypair_file}:/s3_keypair_file:ro \
     ingest-worker \
     -c ${concurrency}

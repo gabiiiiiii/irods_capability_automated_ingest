@@ -93,20 +93,8 @@ HIERARCHY1 = {
     }
 }
 
-def get_irods_environment_file():
-    env_file = os.environ.get('IRODS_ENVIRONMENT_FILE')
-    if env_file is None:
-        env_file = os.path.expanduser('~/.irods/irods_environment.json')
-        if not os.exists(env_file):
-            env_file = None
-    return env_file
-
 def get_kwargs():
     kwargs = {}
-    #env_file = get_irods_environment_file()
-    #if env_file:
-        #kwargs['irods_env_file'] = env_file
-        #return kwargs
 
     env_irods_host = os.environ.get("IRODS_HOST")
     env_irods_port = os.environ.get("IRODS_PORT")
@@ -283,12 +271,16 @@ class automated_ingest_test_context(object):
             delete_resources(session, HIERARCHY1)
 
     # utilities
-    def do_register(self, eh, job_name = DEFAULT_JOB_NAME, resc_name = [DEFAULT_RESC]):
+    def do_register(self, eh, job_name=DEFAULT_JOB_NAME, resc_name=None):
+        if resc_name is None:
+            resc_name = [DEFAULT_RESC]
         proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", PATH_TO_SOURCE_DIR, PATH_TO_COLLECTION, "--event_handler", eh, "--job_name", job_name, "--log_level", "INFO", '--files_per_task', '1'])
         proc.wait()
         self.do_register2(job_name, resc_names=resc_name)
 
-    def do_register2(self, job_name = DEFAULT_JOB_NAME, resc_names=[DEFAULT_RESC]):
+    def do_register2(self, job_name=DEFAULT_JOB_NAME, resc_names=None):
+        if resc_names is None:
+            resc_names = [DEFAULT_RESC]
         workers = start_workers(1)
         wait_for(workers, job_name)
         self.do_assert_register(resc_names)
@@ -315,7 +307,11 @@ class automated_ingest_test_context(object):
                 self.assertEqual(s1, s2)
                 self.assertEqual(datetime.utcfromtimestamp(mtime1), mtime2)
 
-    def do_put(self, eh, job_name = DEFAULT_JOB_NAME, resc_names = [DEFAULT_RESC], resc_roots = [DEFAULT_RESC_VAULT_PATH]):
+    def do_put(self, eh, job_name=DEFAULT_JOB_NAME, resc_names=None, resc_roots=None):
+        if resc_names is None:
+            resc_names = [DEFAULT_RESC]
+        if resc_roots is None:
+            resc_roots = [DEFAULT_RESC_VAULT_PATH]
         proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", PATH_TO_SOURCE_DIR, PATH_TO_COLLECTION, "--event_handler", eh, "--job_name", job_name, "--log_level", "INFO", '--files_per_task', '1'])
         proc.wait()
 
@@ -370,7 +366,7 @@ class Test_event_handlers(automated_ingest_test_context, unittest.TestCase):
         self.do_assert_retry_queue(count=None, job_name=job_name)
 
     # no op
-    def do_no_op(self, eh, job_name = DEFAULT_JOB_NAME):
+    def do_no_op(eh, job_name = DEFAULT_JOB_NAME):
         recreate_files(NFILES)
 
         proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", PATH_TO_SOURCE_DIR, PATH_TO_COLLECTION, "--event_handler", eh, "--job_name", job_name, "--log_level", "INFO", '--files_per_task', '1'])
@@ -381,7 +377,7 @@ class Test_event_handlers(automated_ingest_test_context, unittest.TestCase):
 
     def test_no_op(self):
         job_name = 'test_no_op.do_no_op'
-        self.do_no_op(
+        do_no_op(
             "irods_capability_automated_ingest.examples.no_op",
             job_name = job_name)
         self.do_assert_failed_queue(count=None, job_name=job_name)
@@ -468,7 +464,9 @@ class Test_retry(automated_ingest_test_context, unittest.TestCase):
     def tearDown(self):
         super(Test_retry, self).tearDown()
 
-    def do_no_retry(self, eh, job_name = DEFAULT_JOB_NAME, resc_name = [DEFAULT_RESC]):
+    def do_no_retry(self, eh, job_name=DEFAULT_JOB_NAME, resc_name=None):
+        if resc_name is None:
+            resc_name = [DEFAULT_RESC]
         proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", PATH_TO_SOURCE_DIR, PATH_TO_COLLECTION, "--event_handler", eh, "--job_name", job_name, "--log_level", "INFO", '--files_per_task', '1'])
         proc.wait()
         workers = start_workers(1)
@@ -477,7 +475,9 @@ class Test_retry(automated_ingest_test_context, unittest.TestCase):
         self.do_assert_failed_queue("no failures", job_name=job_name)
         self.do_assert_retry_queue(count=None, job_name=job_name)
 
-    def do_retry(self, eh, job_name = DEFAULT_JOB_NAME, resc_name = [DEFAULT_RESC]):
+    def do_retry(self, eh, job_name=DEFAULT_JOB_NAME, resc_name=None):
+        if resc_name is None:
+            resc_name = [DEFAULT_RESC]
         proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", PATH_TO_SOURCE_DIR, PATH_TO_COLLECTION, "--event_handler", eh, "--job_name", job_name, "--log_level", "INFO", '--files_per_task', '1'])
         proc.wait()
         workers = start_workers(1)
@@ -662,7 +662,9 @@ class Test_update(automated_ingest_test_context, unittest.TestCase):
     def tearDown(self):
         super(Test_update, self).tearDown()
 
-    def do_update(self, eh, job_name = DEFAULT_JOB_NAME, resc_name = [DEFAULT_RESC]):
+    def do_update(self, eh, job_name=DEFAULT_JOB_NAME, resc_name=None):
+        if resc_name is None:
+            resc_name = [DEFAULT_RESC]
         recreate_files(NFILES)
         self.do_register(eh, job_name, resc_name = resc_name)
         with iRODSSession(**get_kwargs()) as session:
@@ -961,7 +963,7 @@ class Test_register_as_replica(automated_ingest_test_context, unittest.TestCase)
     def tearDown(self):
         super(Test_register_as_replica, self).tearDown()
 
-    def do_register_as_replica_no_assertions(self, eh, job_name = DEFAULT_JOB_NAME):
+    def do_register_as_replica_no_assertions(eh, job_name = DEFAULT_JOB_NAME):
         clear_redis()
         recreate_files(NFILES)
 
@@ -978,8 +980,10 @@ class Test_register_as_replica(automated_ingest_test_context, unittest.TestCase)
         workers = start_workers(1)
         wait_for(workers, job_name)
 
-    def do_register_as_replica(self, eh, job_name = DEFAULT_JOB_NAME, resc_names = [DEFAULT_RESC]):
-        self.do_register_as_replica_no_assertions(eh)
+    def do_register_as_replica(self, eh, job_name=DEFAULT_JOB_NAME, resc_names=None):
+        if resc_names is None:
+            resc_names = [DEFAULT_RESC]
+        do_register_as_replica_no_assertions(eh)
         with iRODSSession(**get_kwargs()) as session:
             self.assertTrue(session.collections.exists(PATH_TO_COLLECTION))
             for i in os.listdir(PATH_TO_SOURCE_DIR):
@@ -1046,7 +1050,7 @@ class Test_register_as_replica(automated_ingest_test_context, unittest.TestCase)
         register_as_replica_job = 'test_register_non_leaf_non_root_with_resc_name.register_as_replica'
         event_handler = 'irods_capability_automated_ingest.examples.replica_with_non_leaf_non_root_resc_name'
         # This should result in a hierarchy error
-        self.do_register_as_replica_no_assertions(event_handler, register_as_replica_job)
+        do_register_as_replica_no_assertions(event_handler, register_as_replica_job)
         self.do_assert_failed_queue(job_name=register_as_replica_job)
 
     @unittest.skip('irods/irods#4622')
@@ -1143,7 +1147,7 @@ class Test_register_as_replica(automated_ingest_test_context, unittest.TestCase)
         self.do_assert_failed_queue(count=None, job_name=put_job)
 
         register_as_replica_job = 'test_register_as_replica_with_resc_name_with_another_replica_in_hier.register_as_replica_job'
-        self.do_register_as_replica_no_assertions(
+        do_register_as_replica_no_assertions(
             "irods_capability_automated_ingest.examples.replica_with_resc_name",
             job_name = register_as_replica_job)
         self.do_assert_failed_queue("wrong paths", job_name=register_as_replica_job)
@@ -1151,13 +1155,15 @@ class Test_register_as_replica(automated_ingest_test_context, unittest.TestCase)
     @unittest.skip('irods/irods#3517 - this is not allowed')
     def test_register_as_replica_root_with_resc_name_with_another_replica_in_hier(self):
         self.do_put_to_child()
-        self.do_register_as_replica_no_assertions("irods_capability_automated_ingest.examples.replica_root_with_resc_name")
+        do_register_as_replica_no_assertions("irods_capability_automated_ingest.examples.replica_root_with_resc_name")
+        job_name = 'test_register_as_replica_root_with_resc_name_with_another_replica_in_hier.register_as_replica_job'
         self.do_assert_failed_queue("wrong paths", job_name=job_name)
 
     @unittest.skip('this should result in a HIERARCHY_ERROR')
     def test_register_as_replica_non_leaf_non_root_with_resc_name_with_another_replica_in_hier(self):
         self.do_put_to_child()
-        self.do_register_as_replica_no_assertions("irods_capability_automated_ingest.examples.replica_with_non_root_non_leaf_resc_name")
+        do_register_as_replica_no_assertions("irods_capability_automated_ingest.examples.replica_with_non_root_non_leaf_resc_name")
+        job_name = 'test_register_as_replica_non_leaf_non_root_with_resc_name_with_another_replica_in_hier.register_as_replica_job'
         self.do_assert_failed_queue("wrong paths", job_name=job_name)
 
 
@@ -1165,12 +1171,14 @@ class Test_register_as_replica(automated_ingest_test_context, unittest.TestCase)
     @unittest.skip('irods/irods#4623')
     def test_register_with_as_replica_event_handler_with_resc_name(self):
         self.do_register("irods_capability_automated_ingest.examples.replica_with_resc_name", resc_name = [REGISTER_RESC2A])
+        job_name = 'test_register_with_as_replica_event_handler_with_resc_name.register_as_replica_job'
         self.do_assert_failed_queue(count=None, job_name=job_name)
         self.do_assert_retry_queue(count=None, job_name=job_name)
 
     @unittest.skip('irods/irods#4623')
     def test_register_with_as_replica_event_handler_root_with_resc_name(self):
         self.do_register("irods_capability_automated_ingest.examples.replica_root_with_resc_name", resc_name = [REGISTER_RESC2A, REGISTER_RESC2B])
+        job_name = 'test_register_with_as_replica_event_handler_root_with_resc_name.register_as_replica_job'
         self.do_assert_failed_queue(count=None, job_name=job_name)
         self.do_assert_retry_queue(count=None, job_name=job_name)
 
@@ -1186,7 +1194,9 @@ class Test_update_metadata(automated_ingest_test_context, unittest.TestCase):
         super(Test_update_metadata, self).tearDown()
 
     # update metadata
-    def do_update_metadata(self, eh, job_name = DEFAULT_JOB_NAME, resc_name = [DEFAULT_RESC]):
+    def do_update_metadata(self, eh, job_name=DEFAULT_JOB_NAME, resc_name=None):
+        if resc_name is None:
+            resc_name = [DEFAULT_RESC]
         ctime_files(NFILES)
         self.do_register(eh, job_name, resc_name = resc_name)
         with iRODSSession(**get_kwargs()) as session:

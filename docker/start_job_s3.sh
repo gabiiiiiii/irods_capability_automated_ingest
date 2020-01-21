@@ -84,7 +84,7 @@ docker run \
     --rm \
     --env-file ${env_file} \
     -e "CELERY_BROKER_URL=${celery_broker_url}" \
-    -v ${s3_keypair}:/s3_keypair_file:ro \
+    -v ${s3_keypair_file}:/s3_keypair_file:ro \
     ${container_links} \
     ingest \
     start \
