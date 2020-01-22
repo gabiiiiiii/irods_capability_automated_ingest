@@ -27,7 +27,7 @@ def get_config(args):
 
 def get_celery_broker_info():
     from os import environ
-    env_url = environ['CELERY_BROKER_URL']
+    env_url = environ.get('CELERY_BROKER_URL')
     if env_url is None:
         host = "localhost"
         port = 6379
