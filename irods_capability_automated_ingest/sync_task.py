@@ -682,6 +682,7 @@ def stop_synchronization(job_name, config):
 
 
 def list_synchronization(config):
+    logger = sync_logging.get_sync_logger(config["log"])
     r = get_redis(config)
     logger.warning('Acquiring lock "lock:periodic" from list')
     with redis_lock.Lock(r, "lock:periodic"):
