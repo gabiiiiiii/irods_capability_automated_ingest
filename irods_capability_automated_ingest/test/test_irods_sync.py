@@ -136,8 +136,7 @@ def clear_redis():
 
 
 def start_workers(n, args=[]):
-    os.environ["CELERY_BROKER_URL"] = "redis://redis:6379/0"
-    workers = subprocess.Popen(["celery", "-A", "irods_capability_automated_ingest.sync_task", "worker", "-c", str(n), "-l", "info", "-Q", "restart,path,file"] + args)
+    workers = subprocess.Popen(['CELERY_BROKER_URL=redis://redis:6379/0', 'celery', '-A', 'irods_capability_automated_ingest.sync_task', 'worker', '-c', str(n), '-l', 'info', '-Q', 'restart,path,file'] + args)
     return workers
 
 
@@ -160,7 +159,7 @@ def wait_for(workers, job_name = DEFAULT_JOB_NAME):
 
     workers.send_signal(SIGINT)
     workers.wait()
-    del os.environ['CELERY_BROKER_URL']
+    #del os.environ['CELERY_BROKER_URL']
 
 
 def create_files(nfiles):
@@ -271,7 +270,6 @@ def make_sync_start_subprocess_argument_list(eh, job_name=DEFAULT_JOB_NAME, sour
             '--log_level', 'INFO',
             '--files_per_task', '1',
             '--redis_host', 'redis']
-    
 
 
 class automated_ingest_test_context(object):
