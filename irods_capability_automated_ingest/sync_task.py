@@ -584,12 +584,14 @@ def start_synchronization(data):
         set_with_key(r, cleanup_key, job_name, json.dumps(cleanup_list))
 
     r = get_redis(config)
+    logger.warning('Acquiring lock "lock:periodic" from start')
     with redis_lock.Lock(r, "lock:periodic"):
         if get_with_key(r, cleanup_key, job_name, str) is not None:
             logger.error("job {0} already exists".format(job_name))
             raise Exception("job {0} already exists".format(job_name))
 
         store_event_handler(data_copy)
+        logger.warning('Releasing lock "lock:periodic" from start')
 
     if interval is not None:
         r.rpush("periodic", job_name.encode("utf-8"))
@@ -668,7 +670,7 @@ def stop_synchronization(job_name, config):
 
     r = get_redis(config)
 
-    logger.warning('Acquiring lock "lock:periodic"')
+    logger.warning('Acquiring lock "lock:periodic" from stop')
     with redis_lock.Lock(r, "lock:periodic"):
         if get_with_key(r, cleanup_key, job_name, str) is None:
             logger.error("job [{0}] does not exist".format(job_name))
@@ -676,10 +678,12 @@ def stop_synchronization(job_name, config):
         else:
             interrupt(r, job_name)
             cleanup(r, job_name)
+        logger.warning('Releasing lock "lock:periodic" from stop')
 
 
 def list_synchronization(config):
     r = get_redis(config)
+    logger.warning('Acquiring lock "lock:periodic" from list')
     with redis_lock.Lock(r, "lock:periodic"):
         return {"periodic":list(map(lambda job_id: job_id.decode("utf-8"), r.lrange("periodic", 0, -1))),
                 "singlepass":list(map(lambda job_id: job_id.decode("utf-8"), r.lrange("singlepass", 0, -1)))}
