@@ -668,6 +668,7 @@ def stop_synchronization(job_name, config):
 
     r = get_redis(config)
 
+    logger.warning('Acquiring lock "lock:periodic"')
     with redis_lock.Lock(r, "lock:periodic"):
         if get_with_key(r, cleanup_key, job_name, str) is None:
             logger.error("job [{0}] does not exist".format(job_name))
