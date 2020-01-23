@@ -263,6 +263,17 @@ def modify_time(session, path):
         return row[DataObject.modify_time]
 
 
+def make_sync_start_subprocess_argument_list(eh, job_name=DEFAULT_JOB_NAME, source_dir=PATH_TO_SOURCE_DIR, dest_coll=PATH_TO_COLLECTION):
+    return ['python', '-m', IRODS_SYNC_PY,
+            'start', source_dir, dest_coll,
+            '--event_handler', eh,
+            '--job_name', job_name,
+            '--log_level', 'INFO',
+            '--files_per_task', '1',
+            '--redis_host', 'redis']
+    
+
+
 class automated_ingest_test_context(object):
     def setUp(self):
         irmtrash()
@@ -283,8 +294,10 @@ class automated_ingest_test_context(object):
             delete_resources(session, HIERARCHY1)
 
     # utilities
-    def do_register(self, eh, job_name = DEFAULT_JOB_NAME, resc_name = [DEFAULT_RESC]):
-        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", PATH_TO_SOURCE_DIR, PATH_TO_COLLECTION, "--event_handler", eh, "--job_name", job_name, "--log_level", "INFO", '--files_per_task', '1'])
+    def do_register(self, eh, job_name=DEFAULT_JOB_NAME, resc_name=None):
+        if resc_name is None:
+            resc_name = [DEFAULT_RESC]
+        proc = subprocess.Popen(make_sync_start_subprocess_argument_list(eh=eh, job_name=job_name))
         proc.wait()
         self.do_register2(job_name, resc_names=resc_name)
 
@@ -316,7 +329,7 @@ class automated_ingest_test_context(object):
                 self.assertEqual(datetime.utcfromtimestamp(mtime1), mtime2)
 
     def do_put(self, eh, job_name = DEFAULT_JOB_NAME, resc_names = [DEFAULT_RESC], resc_roots = [DEFAULT_RESC_VAULT_PATH]):
-        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", PATH_TO_SOURCE_DIR, PATH_TO_COLLECTION, "--event_handler", eh, "--job_name", job_name, "--log_level", "INFO", '--files_per_task', '1'])
+        proc = subprocess.Popen(make_sync_start_subprocess_argument_list(eh=eh, job_name=job_name))
         proc.wait()
 
         workers = start_workers(1)
@@ -373,7 +386,7 @@ class Test_event_handlers(automated_ingest_test_context, unittest.TestCase):
     def do_no_op(self, eh, job_name = DEFAULT_JOB_NAME):
         recreate_files(NFILES)
 
-        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", PATH_TO_SOURCE_DIR, PATH_TO_COLLECTION, "--event_handler", eh, "--job_name", job_name, "--log_level", "INFO", '--files_per_task', '1'])
+        proc = subprocess.Popen(make_sync_start_subprocess_argument_list(eh=eh, job_name=job_name))
         proc.wait()
 
         workers = start_workers(1)
@@ -392,7 +405,9 @@ class Test_event_handlers(automated_ingest_test_context, unittest.TestCase):
     def do_append_json(self, eh, job_name = DEFAULT_JOB_NAME):
         recreate_files(NFILES)
 
-        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", PATH_TO_SOURCE_DIR, PATH_TO_COLLECTION, "--event_handler", eh, "--append_json", "\"append_json\"", "--job_name", job_name, "--log_level", "INFO", '--files_per_task', '1'])
+        command = make_sync_start_subprocess_argument_list(eh=eh, job_name=job_name)
+        command.extend(['--append_json', '"append_json"'])
+        proc = subprocess.Popen(command)
         proc.wait()
 
         workers = start_workers(1)
@@ -410,7 +425,7 @@ class Test_event_handlers(automated_ingest_test_context, unittest.TestCase):
     # create dir
     def do_register_dir_par(self, eh, job_name = DEFAULT_JOB_NAME, resc_names=[DEFAULT_RESC]):
         create_files2(10, NFILES)
-        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", PATH_TO_SOURCE_DIR, PATH_TO_COLLECTION, "--event_handler", eh, "--job_name", job_name, "--log_level", "INFO", '--files_per_task', '1'])
+        proc = subprocess.Popen(make_sync_start_subprocess_argument_list(eh=eh, job_name=job_name))
         proc.wait()
         workers = start_workers(NWORKERS)
         wait_for(workers, job_name)
@@ -447,7 +462,7 @@ class Test_event_handlers(automated_ingest_test_context, unittest.TestCase):
 
     # timeout
     def do_timeout(self, eh, job_name = DEFAULT_JOB_NAME):
-        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", PATH_TO_SOURCE_DIR, PATH_TO_COLLECTION, "--event_handler", eh, "--job_name", job_name, "--log_level", "INFO", '--files_per_task', '1'])
+        proc = subprocess.Popen(make_sync_start_subprocess_argument_list(eh=eh, job_name=job_name))
         proc.wait()
 
         workers = start_workers(1)
@@ -469,7 +484,7 @@ class Test_retry(automated_ingest_test_context, unittest.TestCase):
         super(Test_retry, self).tearDown()
 
     def do_no_retry(self, eh, job_name = DEFAULT_JOB_NAME, resc_name = [DEFAULT_RESC]):
-        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", PATH_TO_SOURCE_DIR, PATH_TO_COLLECTION, "--event_handler", eh, "--job_name", job_name, "--log_level", "INFO", '--files_per_task', '1'])
+        proc = subprocess.Popen(make_sync_start_subprocess_argument_list(eh=eh, job_name=job_name))
         proc.wait()
         workers = start_workers(1)
         wait_for(workers, job_name)
@@ -478,7 +493,7 @@ class Test_retry(automated_ingest_test_context, unittest.TestCase):
         self.do_assert_retry_queue(count=None, job_name=job_name)
 
     def do_retry(self, eh, job_name = DEFAULT_JOB_NAME, resc_name = [DEFAULT_RESC]):
-        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", PATH_TO_SOURCE_DIR, PATH_TO_COLLECTION, "--event_handler", eh, "--job_name", job_name, "--log_level", "INFO", '--files_per_task', '1'])
+        proc = subprocess.Popen(make_sync_start_subprocess_argument_list(eh=eh, job_name=job_name))
         proc.wait()
         workers = start_workers(1)
         wait_for(workers, job_name)
@@ -507,7 +522,7 @@ class Test_pre_and_post_job(automated_ingest_test_context, unittest.TestCase):
         super(Test_pre_and_post_job, self).tearDown()
 
     def do_pre_job(self, eh, job_name = DEFAULT_JOB_NAME):
-        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", PATH_TO_SOURCE_DIR, PATH_TO_COLLECTION, "--event_handler", eh, "--job_name", job_name, "--log_level", "INFO", '--files_per_task', '1'])
+        proc = subprocess.Popen(make_sync_start_subprocess_argument_list(eh=eh, job_name=job_name))
         proc.wait()
 
         workers = start_workers(1)
@@ -517,7 +532,7 @@ class Test_pre_and_post_job(automated_ingest_test_context, unittest.TestCase):
             self.assertEqual(lines, ["pre_job"])
 
     def do_post_job(self, eh, job_name = DEFAULT_JOB_NAME):
-        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", PATH_TO_SOURCE_DIR, PATH_TO_COLLECTION, "--event_handler", eh, "--job_name", job_name, "--log_level", "INFO", '--files_per_task', '1'])
+        proc = subprocess.Popen(make_sync_start_subprocess_argument_list(eh=eh, job_name=job_name))
         proc.wait()
 
         workers = start_workers(1)
@@ -548,7 +563,7 @@ class Test_no_sync(automated_ingest_test_context, unittest.TestCase):
     def do_no_sync(self, eh, job_name = DEFAULT_JOB_NAME):
         recreate_files(NFILES)
 
-        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", PATH_TO_SOURCE_DIR, PATH_TO_COLLECTION, "--event_handler", eh, "--job_name", job_name, "--log_level", "INFO", '--files_per_task', '1'])
+        proc = subprocess.Popen(make_sync_start_subprocess_argument_list(eh=eh, job_name=job_name))
         proc.wait()
 
         workers = start_workers(1)
@@ -737,7 +752,7 @@ class Test_put(automated_ingest_test_context, unittest.TestCase):
         super(Test_put, self).tearDown()
 
     def do_put_par(self, eh, job_name = DEFAULT_JOB_NAME, resc_names=[DEFAULT_RESC], resc_roots=[DEFAULT_RESC_VAULT_PATH]):
-        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", PATH_TO_SOURCE_DIR, PATH_TO_COLLECTION, "--event_handler", eh, "--job_name", job_name, "--log_level", "INFO", '--files_per_task', '1'])
+        proc = subprocess.Popen(make_sync_start_subprocess_argument_list(eh=eh, job_name=job_name))
         proc.wait()
 
         workers = start_workers(NWORKERS)
@@ -756,14 +771,7 @@ class Test_put(automated_ingest_test_context, unittest.TestCase):
     def test_put_with_resc_name(self):
         job_name = 'test_put_with_resc_name.put'
         event_handler = 'irods_capability_automated_ingest.examples.put_with_resc_name'
-        proc = subprocess.Popen([
-            "python", "-m", IRODS_SYNC_PY, "start",
-            PATH_TO_SOURCE_DIR,
-            PATH_TO_COLLECTION,
-            "--event_handler", event_handler,
-            "--job_name", job_name,
-            "--log_level", "INFO",
-            '--files_per_task', '1'])
+        proc = subprocess.Popen(make_sync_start_subprocess_argument_list(eh=event_handler, job_name=job_name))
         proc.wait()
         workers = start_workers(1)
         wait_for(workers, job_name)
@@ -783,14 +791,7 @@ class Test_put(automated_ingest_test_context, unittest.TestCase):
     def test_put_non_leaf_non_root_with_resc_name(self):
         job_name = 'test_put_non_leaf_non_root_with_resc_name.put'
         event_handler = 'irods_capability_automated_ingest.examples.put_non_leaf_non_root_with_resc_name'
-        proc = subprocess.Popen([
-            "python", "-m", IRODS_SYNC_PY, "start",
-            PATH_TO_SOURCE_DIR,
-            PATH_TO_COLLECTION,
-            "--event_handler", event_handler,
-            "--job_name", job_name,
-            "--log_level", "INFO",
-            '--files_per_task', '1'])
+        proc = subprocess.Popen(make_sync_start_subprocess_argument_list(eh=event_handler, job_name=job_name))
         proc.wait()
         workers = start_workers(1)
         wait_for(workers, job_name)
@@ -865,7 +866,7 @@ class Test_pep_callbacks(automated_ingest_test_context, unittest.TestCase):
 
     def run_sync_job_with_pep_callbacks(self, source_dir=PATH_TO_SOURCE_DIR, destination_coll=PATH_TO_COLLECTION, job_name = DEFAULT_JOB_NAME):
         eh = 'irods_capability_automated_ingest.examples.register_with_peps'
-        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", source_dir, destination_coll, "--event_handler", eh, "--job_name", job_name, "--log_level", "INFO", '--log_filename', self.logfile.name, '--files_per_task', '1'])
+        proc = subprocess.Popen(make_sync_start_subprocess_argument_list(eh=eh, job_name=job_name))
         proc.wait()
 
     def assert_pep_messages_in_log(self, log_contents, messages):
@@ -965,14 +966,7 @@ class Test_register_as_replica(automated_ingest_test_context, unittest.TestCase)
         clear_redis()
         recreate_files(NFILES)
 
-        proc = subprocess.Popen([
-            "python", "-m", IRODS_SYNC_PY, "start",
-            PATH_TO_SOURCE_DIR,
-            PATH_TO_COLLECTION,
-            "--event_handler", eh,
-            "--job_name", job_name,
-            "--log_level", "INFO",
-            '--files_per_task', '1'])
+        proc = subprocess.Popen(make_sync_start_subprocess_argument_list(eh=eh, job_name=job_name))
         proc.wait()
 
         workers = start_workers(1)
@@ -1164,13 +1158,17 @@ class Test_register_as_replica(automated_ingest_test_context, unittest.TestCase)
     # register with as replica event handler
     @unittest.skip('irods/irods#4623')
     def test_register_with_as_replica_event_handler_with_resc_name(self):
-        self.do_register("irods_capability_automated_ingest.examples.replica_with_resc_name", resc_name = [REGISTER_RESC2A])
+        self.do_register(
+            "irods_capability_automated_ingest.examples.replica_with_resc_name",
+            resc_name = [REGISTER_RESC2A])
         self.do_assert_failed_queue(count=None, job_name=job_name)
         self.do_assert_retry_queue(count=None, job_name=job_name)
 
     @unittest.skip('irods/irods#4623')
     def test_register_with_as_replica_event_handler_root_with_resc_name(self):
-        self.do_register("irods_capability_automated_ingest.examples.replica_root_with_resc_name", resc_name = [REGISTER_RESC2A, REGISTER_RESC2B])
+        self.do_register(
+            "irods_capability_automated_ingest.examples.replica_root_with_resc_name",
+            resc_name = [REGISTER_RESC2A, REGISTER_RESC2B])
         self.do_assert_failed_queue(count=None, job_name=job_name)
         self.do_assert_retry_queue(count=None, job_name=job_name)
 
@@ -1288,14 +1286,7 @@ class Test_register(automated_ingest_test_context, unittest.TestCase):
     def test_register_non_leaf_non_root_with_resc_name(self):
         job_name = 'test_register_non_leaf_non_root_with_resc_name'
         event_handler = 'irods_capability_automated_ingest.examples.register_non_leaf_non_root_with_resc_name'
-        proc = subprocess.Popen([
-            "python", "-m", IRODS_SYNC_PY, "start",
-            PATH_TO_SOURCE_DIR,
-            PATH_TO_COLLECTION,
-            "--event_handler", event_handler,
-            "--job_name", job_name,
-            "--log_level", "INFO",
-            '--files_per_task', '1'])
+        proc = subprocess.Popen(make_sync_start_subprocess_argument_list(eh=event_handler, job_name=job_name))
         proc.wait()
         workers = start_workers(1)
         wait_for(workers, job_name)
@@ -1304,7 +1295,7 @@ class Test_register(automated_ingest_test_context, unittest.TestCase):
         self.do_assert_failed_queue(job_name=job_name)
 
     def do_register_par(self, eh, job_name = DEFAULT_JOB_NAME, resc_names=[DEFAULT_RESC]):
-        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", PATH_TO_SOURCE_DIR, PATH_TO_COLLECTION, "--event_handler", eh, "--job_name", job_name, "--log_level", "INFO", '--files_per_task', '1'])
+        proc = subprocess.Popen(make_sync_start_subprocess_argument_list(eh=eh, job_name=job_name))
         proc.wait()
         workers = start_workers(NWORKERS)
         wait_for(workers, job_name)
@@ -1320,9 +1311,7 @@ class Test_register(automated_ingest_test_context, unittest.TestCase):
         self.do_assert_retry_queue(count=None, job_name=job_name)
 
     def do_register_to_invalid_zone(self, target_collection, job_name = DEFAULT_JOB_NAME):
-        subprocess.check_output(
-            ["python", "-m", IRODS_SYNC_PY, "start", PATH_TO_SOURCE_DIR, target_collection, "--job_name", job_name, "--log_level", "INFO", '--files_per_task', '1'],
-            stderr=subprocess.PIPE)
+        subprocess.check_output(make_sync_start_subprocess_argument_list(job_name=job_name), stderr=subprocess.PIPE)
         workers = start_workers(1)
         wait_for(workers, job_name)
         count_of_dir_and_files = NFILES + 1
@@ -1349,9 +1338,7 @@ class Test_register(automated_ingest_test_context, unittest.TestCase):
         expected_err_msg = 'Root may only contain collections which represent zones'
         job_name = 'test_register_to_root_collection'
         try:
-            subprocess.check_output(
-                ["python", "-m", IRODS_SYNC_PY, "start", PATH_TO_SOURCE_DIR, target_collection, "--job_name", job_name, "--log_level", "INFO", '--files_per_task', '1'],
-                stderr=subprocess.PIPE)
+            subprocess.check_output(make_sync_start_subprocess_argument_list(job_name=job_name), stderr=subprocess.PIPE)
         except subprocess.CalledProcessError as e:
             self.assertTrue(expected_err_msg in str(e.stderr))
             return
@@ -1437,7 +1424,12 @@ class Test_irods_sync_UnicodeEncodeError(unittest.TestCase):
             f.write('Test_irods_sync_UnicodeEncodeError')
 
     def run_scan_with_event_handler(self, event_handler, job_name = DEFAULT_JOB_NAME):
-        proc = subprocess.Popen(["python", "-m", IRODS_SYNC_PY, "start", self.source_dir_path, self.dest_coll_path, "--event_handler", event_handler, "--job_name", job_name, "--log_level", "INFO", '--files_per_task', '1'])
+        proc = subprocess.Popen(
+            make_sync_start_subprocess_argument_list(
+                eh=event_handler,
+                job_name=job_name,
+                source_dir=self.source_dir_path,
+                dest_coll=self.dest_coll_path))
         proc.wait()
         workers = start_workers(1)
         wait_for(workers, job_name)
