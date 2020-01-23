@@ -1303,7 +1303,7 @@ class Test_register(automated_ingest_test_context, unittest.TestCase):
         # This should result in a hierarchy error
         self.do_assert_failed_queue(job_name=job_name)
 
-    def do_register_par(self, eh, job_nare=DEFAULT_JOB_NAME, resc_list=None):
+    def do_register_par(self, eh, job_name=DEFAULT_JOB_NAME, resc_list=None):
         if resc_list is None:
             resc_list = [DEFAULT_RESC]
         proc = subprocess.Popen(make_sync_start_subprocess_argument_list(eh=eh, job_name=job_name))
