@@ -136,6 +136,7 @@ def clear_redis():
 
 
 def start_workers(n, args=[]):
+    os.environ["CELERY_BROKER_URL"] = "redis://redis:6379/0"
     workers = subprocess.Popen(["celery", "-A", "irods_capability_automated_ingest.sync_task", "worker", "-c", str(n), "-l", "info", "-Q", "restart,path,file"] + args)
     return workers
 
@@ -159,6 +160,7 @@ def wait_for(workers, job_name = DEFAULT_JOB_NAME):
 
     workers.send_signal(SIGINT)
     workers.wait()
+    del os.environ['CELERY_BROKER_URL']
 
 
 def create_files(nfiles):
@@ -263,8 +265,6 @@ def modify_time(session, path):
 
 class automated_ingest_test_context(object):
     def setUp(self):
-        os.environ["CELERY_BROKER_URL"] = "redis://redis:6379/0"
-
         irmtrash()
         clear_redis()
         delete_collection_if_exists(PATH_TO_COLLECTION)
@@ -1361,8 +1361,6 @@ class Test_register(automated_ingest_test_context, unittest.TestCase):
 @unittest.skip('Running tests as Docker application does not trip UnicodeEncodeError')
 class Test_irods_sync_UnicodeEncodeError(unittest.TestCase):
     def setUp(self):
-        os.environ["CELERY_BROKER_URL"] = "redis://redis:6379/0"
-
         clear_redis()
         irmtrash()
 
