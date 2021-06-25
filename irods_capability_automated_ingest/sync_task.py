@@ -487,7 +487,7 @@ class s3_scanner(scanner):
                 prefix = path_list[1]
             meta['root'] = bucket_name
             meta['s3_prefix'] = prefix
-            itr = client.list_objects_v2(bucket_name, prefix=prefix, recursive=True)
+            itr = client.list_objects(bucket_name, prefix=prefix, recursive=True)
 # ----------------------
 
             if meta["profile"]:
