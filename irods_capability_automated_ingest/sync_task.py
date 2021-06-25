@@ -200,6 +200,7 @@ class scanner(object):
         except FileNotFoundError:
             return False
 
+            #iterate through array
         if stat.S_ISREG(mode):
             if 'regular' in ex_list or file_match:
                 ret_val = True

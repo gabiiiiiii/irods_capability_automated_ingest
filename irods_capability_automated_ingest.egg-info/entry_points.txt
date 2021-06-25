@@ -1,0 +1,3 @@
+[console_scripts]
+irods_capability_automated_ingest = irods_capability_automated_ingest.irods_sync:main
+
