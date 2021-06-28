@@ -93,7 +93,7 @@ def monitor_job(job_name, progress, config):
 def start_job(data):
     config = data["config"]
     logging_config = config["log"]
-    root = data["root"]
+    src_dir = data["src_dir"]
     job_name = data["job_name"]
     interval = data["interval"]
     restart_queue = data["restart_queue"]
@@ -116,7 +116,7 @@ def start_job(data):
                 data_copy['s3_access_key'] = f.readline().rstrip()
                 data_copy['s3_secret_key'] = f.readline().rstrip()
         # set root
-        root_abs = root
+        root_abs = src_dir
     else:
         root_abs = realpath(root)
 
