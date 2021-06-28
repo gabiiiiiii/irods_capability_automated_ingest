@@ -67,7 +67,7 @@ def handle_start(args):
     data["path_queue"] = 'path'
     data["file_queue"] = 'file'
     data["target"] = args.target
-    data["root"] = args.root
+    data["src_dir"] = args.src_dir
     data["interval"] = args.interval
     data["job_name"] = args.job_name if args.job_name else str(uuid1())
     data["append_json"] = args.append_json
@@ -111,7 +111,7 @@ def main():
     subparsers = parser.add_subparsers(help="subcommand help")
 
     parser_start = subparsers.add_parser("start", formatter_class=argparse.ArgumentDefaultsHelpFormatter, help="start help")
-    parser_start.add_argument('root', metavar='SOURCE_DIRECTORY', type=str, help='Source directory or S3 folder to scan.')
+    parser_start.add_argument('src_dir', metavar='SOURCE_DIRECTORY', type=str, help='Source directory or S3 folder to scan.')
     parser_start.add_argument('target', metavar='TARGET_COLLECTION', type=str, help='Target iRODS collection for data objects (created if non-existent).')
     parser_start.add_argument('-i', '--interval', action="store", type=int, default=None, help='Restart interval (in seconds). If absent, will only sync once.')
     parser_start.add_argument('--event_handler', action="store", type=str, default=None, help='Path to event handler file')

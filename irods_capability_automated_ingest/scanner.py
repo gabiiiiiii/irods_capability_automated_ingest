@@ -52,26 +52,15 @@ class scanner(object):
         except FileNotFoundError:
             return False
 
-        if stat.S_ISREG(mode):
-            if 'regular' in ex_list or file_match:
-                ret_val = True
-        elif stat.S_ISDIR(mode):
+        modes = {'S_ISREG': 'regular', 'S_ISCHR': 'character',
+                 'S_ISBLK': 'block', 'S_ISSOCK': 'socket', 'S_ISFIFO': 'pipe', 'S_ISLNK': 'link'}
+
+        for x in modes:
+            if stat.x(mode):
+                if modes[x] in ex_list or file_match:
+                    ret_val = True
+        if stat.S_ISDIR(mode):
             if 'directory' in ex_list or dir_match:
-                ret_val = True
-        elif stat.S_ISCHR(mode):
-            if 'character' in ex_list or file_match:
-                ret_val = True
-        elif stat.S_ISBLK(mode):
-            if 'block' in ex_list or file_match:
-                ret_val = True
-        elif stat.S_ISSOCK(mode):
-            if 'socket' in ex_list or file_match:
-                ret_val = True
-        elif stat.S_ISFIFO(mode):
-            if 'pipe' in ex_list or file_match:
-                ret_val = True
-        elif stat.S_ISLNK(mode):
-            if 'link' in ex_list or file_match:
                 ret_val = True
 
         return ret_val
