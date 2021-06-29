@@ -21,18 +21,17 @@ from billiard import current_process
 import base64
 import re
 
-
 class scanner(object):
     def __init__(self, meta):
         self.meta = meta.copy()
 
     def exclude_file_type(self, dir_regex, file_regex, full_path, logger, mode=None):
-        exclude_type_list = self.meta['exclude_file_type']
+        ex_list = self.meta['exclude_file_type']
         if len(ex_list) <= 0 and None == dir_regex and None == file_regex:
             return False
 
         ret_val = False
-        mode    = None
+        mode = None
 
         dir_match = None
         for d in dir_regex:
@@ -65,6 +64,7 @@ class scanner(object):
 
         return ret_val
 
+
 class filesystem_scanner(scanner):
     def __init__(self, meta):
         super(filesystem_scanner, self).__init__(meta)
@@ -81,8 +81,8 @@ class filesystem_scanner(scanner):
 
         logger = sync_logging.get_sync_logger(logging_config)
 
-        file_regex = [ re.compile(r) for r in exclude_file_name ]
-        dir_regex  = [ re.compile(r) for r in exclude_directory_name ]
+        file_regex = [re.compile(r) for r in exclude_file_name]
+        dir_regex = [re.compile(r) for r in exclude_directory_name]
 
         try:
             logger.info("walk dir", path=path)
@@ -102,10 +102,12 @@ class filesystem_scanner(scanner):
                 profile_logger = sync_logging.get_sync_logger(profile_log)
                 task_id = task_cls.request.id
 
-                profile_logger.info("list_dir_prerun", event_id=task_id + ":list_dir", event_name="list_dir", hostname=task_cls.request.hostname, index=current_process().index)
+                profile_logger.info("list_dir_prerun", event_id=task_id + ":list_dir", event_name="list_dir",
+                                    hostname=task_cls.request.hostname, index=current_process().index)
                 itr = list(itr)
                 if meta["profile"]:
-                    profile_logger.info("list_dir_postrun", event_id=task_id + ":list_dir", event_name="list_dir", hostname=task_cls.request.hostname, index=current_process().index)
+                    profile_logger.info("list_dir_postrun", event_id=task_id + ":list_dir", event_name="list_dir",
+                                        hostname=task_cls.request.hostname, index=current_process().index)
 
             for obj in itr:
                 obj_stats = {}
@@ -113,18 +115,21 @@ class filesystem_scanner(scanner):
                 full_path = os.path.abspath(obj.path)
                 mode = obj.stat(follow_symlinks=False).st_mode
 
-                if exclude_file_type(exclude_type_list, dir_regex, file_regex, full_path, logger, mode):
+                if self.exclude_file_type(dir_regex, file_regex, full_path, logger, mode):
                     continue
 
                 if not obj.is_symlink() and not bool(mode & stat.S_IRGRP):
-                    logger.error('physical path is not readable [{0}]'.format(full_path))
+                    logger.error(
+                        'physical path is not readable [{0}]'.format(full_path))
                     continue
 
                 if obj.is_dir() and not obj.is_symlink() and not obj.is_file():
                     sync_dir_meta = meta.copy()
                     sync_dir_meta['path'] = full_path
-                    sync_dir_meta['mtime'] = obj.stat(follow_symlinks=False).st_mtime
-                    sync_dir_meta['ctime'] = obj.stat(follow_symlinks=False).st_ctime
+                    sync_dir_meta['mtime'] = obj.stat(
+                        follow_symlinks=False).st_mtime
+                    sync_dir_meta['ctime'] = obj.stat(
+                        follow_symlinks=False).st_ctime
                     #task_queue(path_q_name).add(sync_path, sync_dir_meta)
                     sync_dir_meta['queue_name'] = path_q_name
                     enqueue_task(sync_path, sync_dir_meta)
@@ -146,7 +151,7 @@ class filesystem_scanner(scanner):
                     sync_files_meta = meta.copy()
                     sync_files_meta['chunk'] = chunk
                     #task_queue(file_q_name).add(sync_files, sync_files_meta)
-                    sync_dir_meta['queue_name'] = file_q_name
+                    sync_files_meta['queue_name'] = file_q_name
                     enqueue_task(sync_files, sync_files_meta)
                     chunk.clear()
 
@@ -162,7 +167,8 @@ class filesystem_scanner(scanner):
             event_handler = custom_event_handler(meta)
             retry_countdown = event_handler.delay(task_cls.request.retries + 1)
             max_retries = event_handler.max_retries()
-            raise task_cls.retry(max_retries=max_retries, exc=err, countdown=retry_countdown)
+            raise task_cls.retry(max_retries=max_retries,
+                                 exc=err, countdown=retry_countdown)
 
     def sync_entry(self, task_cls, meta, cls, datafunc, metafunc):
         task = meta["task"]
@@ -195,9 +201,11 @@ class filesystem_scanner(scanner):
             utf8_escaped_abspath = abspath.encode('utf8', 'surrogateescape')
             b64_path_str = base64.b64encode(utf8_escaped_abspath)
 
-            unicode_error_filename = 'irods_UnicodeEncodeError_' + str(b64_path_str.decode('utf8'))
+            unicode_error_filename = 'irods_UnicodeEncodeError_' + \
+                str(b64_path_str.decode('utf8'))
 
-            logger.warning('sync_entry raised UnicodeEncodeError while syncing path:' + str(utf8_escaped_abspath))
+            logger.warning(
+                'sync_entry raised UnicodeEncodeError while syncing path:' + str(utf8_escaped_abspath))
 
             meta['path'] = path
             meta['b64_path_str'] = b64_path_str
@@ -227,10 +235,12 @@ class filesystem_scanner(scanner):
                 ctime = getctime(path)
 
             if sync_time is not None and mtime < sync_time and ctime < sync_time:
-                logger.info("succeeded_" + cls + "_has_not_changed", task=task, path=path)
+                logger.info("succeeded_" + cls +
+                            "_has_not_changed", task=task, path=path)
             else:
                 t = datetime.now().timestamp()
-                logger.info("synchronizing " + cls, path=path, t0=sync_time, t=t, ctime=ctime)
+                logger.info("synchronizing " + cls, path=path,
+                            t0=sync_time, t=t, ctime=ctime)
                 meta2 = meta.copy()
                 if path == root:
                     if 'unicode_error_filename' in meta:
@@ -238,7 +248,7 @@ class filesystem_scanner(scanner):
                     else:
                         target2 = target
                 else:
-# ----------------------
+                    # ----------------------
                     target2 = join(target, relpath(path, start=root))
 # ----------------------
                 meta2["target"] = target2
@@ -247,15 +257,18 @@ class filesystem_scanner(scanner):
                     logger.info("succeeded", task=task, path=path)
                 else:
                     metafunc(meta2, logger)
-                    logger.info("succeeded_metadata_only", task=task, path=path)
+                    logger.info("succeeded_metadata_only",
+                                task=task, path=path)
                 sync_time_handle.set_value(str(t))
         except Exception as err:
             event_handler = custom_event_handler(meta)
             retry_countdown = event_handler.delay(task_cls.request.retries + 1)
-            raise task_cls.retry(max_retries=max_retries, exc=err, countdown=retry_countdown)
+            raise task_cls.retry(max_retries=max_retries,
+                                 exc=err, countdown=retry_countdown)
         finally:
             if lock is not None:
                 lock.release()
+
 
 class s3_scanner(scanner):
     def __init__(self, meta):
@@ -278,8 +291,8 @@ class s3_scanner(scanner):
 
         logger = sync_logging.get_sync_logger(logging_config)
 
-        file_regex = [ re.compile(r) for r in exclude_file_name ]
-        dir_regex  = [ re.compile(r) for r in exclude_directory_name ]
+        file_regex = [re.compile(r) for r in exclude_file_name]
+        dir_regex = [re.compile(r) for r in exclude_directory_name]
 
         try:
             logger.info("walk dir", path=path)
@@ -296,23 +309,28 @@ class s3_scanner(scanner):
             else:
                 import urllib3
                 httpClient = urllib3.ProxyManager(
-                                        proxy_url,
-                                        timeout=urllib3.Timeout.DEFAULT_TIMEOUT,
-                                        cert_reqs='CERT_REQUIRED',
-                                        retries=urllib3.Retry(
-                                            total=5,
-                                            backoff_factor=0.2,
-                                            status_forcelist=[500, 502, 503, 504]
-                                        )
-                             )
+                    proxy_url,
+                    timeout=urllib3.Timeout.DEFAULT_TIMEOUT,
+                    cert_reqs='CERT_REQUIRED',
+                    retries=urllib3.Retry(
+                        total=5,
+                        backoff_factor=0.2,
+                        status_forcelist=[
+                            500, 502, 503, 504]
+                    )
+                )
             endpoint_domain = meta.get('s3_endpoint_domain')
             s3_access_key = meta.get('s3_access_key')
             s3_secret_key = meta.get('s3_secret_key')
+            s3_secure_connection = meta.get('s3_secure_connection')
+            if s3_secure_connection is None:
+                s3_secure_connection = True
             client = Minio(
-                         endpoint_domain,
-                         access_key=s3_access_key,
-                         secret_key=s3_secret_key,
-                         http_client=httpClient)
+                endpoint_domain,
+                access_key=s3_access_key,
+                secret_key=s3_secret_key,
+                secure=s3_secure_connection,
+                http_client=httpClient)
 
             # Split provided path into bucket and source folder "prefix"
             path_list = path.lstrip('/').split('/', 1)
@@ -323,7 +341,8 @@ class s3_scanner(scanner):
                 prefix = path_list[1]
             meta['root'] = bucket_name
             meta['s3_prefix'] = prefix
-            itr = client.list_objects_v2(bucket_name, prefix=prefix, recursive=True)
+            itr = client.list_objects(
+                bucket_name, prefix=prefix, recursive=True)
 # ----------------------
 
             if meta["profile"]:
@@ -332,10 +351,12 @@ class s3_scanner(scanner):
                 profile_logger = sync_logging.get_sync_logger(profile_log)
                 task_id = task_cls.request.id
 
-                profile_logger.info("list_dir_prerun", event_id=task_id + ":list_dir", event_name="list_dir", hostname=task_cls.request.hostname, index=current_process().index)
+                profile_logger.info("list_dir_prerun", event_id=task_id + ":list_dir", event_name="list_dir",
+                                    hostname=task_cls.request.hostname, index=current_process().index)
                 itr = list(itr)
                 if meta["profile"]:
-                    profile_logger.info("list_dir_postrun", event_id=task_id + ":list_dir", event_name="list_dir", hostname=task_cls.request.hostname, index=current_process().index)
+                    profile_logger.info("list_dir_postrun", event_id=task_id + ":list_dir", event_name="list_dir",
+                                        hostname=task_cls.request.hostname, index=current_process().index)
 
             for obj in itr:
                 obj_stats = {}
@@ -375,7 +396,8 @@ class s3_scanner(scanner):
             event_handler = custom_event_handler(meta)
             retry_countdown = event_handler.delay(task_cls.request.retries + 1)
             max_retries = event_handler.max_retries()
-            raise task_cls.retry(max_retries=max_retries, exc=err, countdown=retry_countdown)
+            raise task_cls.retry(max_retries=max_retries,
+                                 exc=err, countdown=retry_countdown)
 
     def sync_entry(self, task_cls, meta, cls, datafunc, metafunc):
         task = meta["task"]
@@ -408,9 +430,11 @@ class s3_scanner(scanner):
             utf8_escaped_abspath = abspath.encode('utf8', 'surrogateescape')
             b64_path_str = base64.b64encode(utf8_escaped_abspath)
 
-            unicode_error_filename = 'irods_UnicodeEncodeError_' + str(b64_path_str.decode('utf8'))
+            unicode_error_filename = 'irods_UnicodeEncodeError_' + \
+                str(b64_path_str.decode('utf8'))
 
-            logger.warning('sync_entry raised UnicodeEncodeError while syncing path:' + str(utf8_escaped_abspath))
+            logger.warning(
+                'sync_entry raised UnicodeEncodeError while syncing path:' + str(utf8_escaped_abspath))
 
             meta['path'] = path
             meta['b64_path_str'] = b64_path_str
@@ -440,10 +464,12 @@ class s3_scanner(scanner):
                 ctime = getctime(path)
 
             if sync_time is not None and mtime < sync_time and ctime < sync_time:
-                logger.info("succeeded_" + cls + "_has_not_changed", task=task, path=path)
+                logger.info("succeeded_" + cls +
+                            "_has_not_changed", task=task, path=path)
             else:
                 t = datetime.now().timestamp()
-                logger.info("synchronizing " + cls, path=path, t0=sync_time, t=t, ctime=ctime)
+                logger.info("synchronizing " + cls, path=path,
+                            t0=sync_time, t=t, ctime=ctime)
                 meta2 = meta.copy()
                 if path == root:
                     if 'unicode_error_filename' in meta:
@@ -451,10 +477,11 @@ class s3_scanner(scanner):
                     else:
                         target2 = target
                 else:
-# ----------------------
+                    # ----------------------
                     # Strip prefix from S3 path
                     prefix = meta['s3_prefix']
-                    reg_path = path[path.index(prefix) + len(prefix):].strip('/')
+                    reg_path = path[path.index(
+                        prefix) + len(prefix):].strip('/')
                     # Construct S3 "logical path"
                     target2 = join(target, reg_path)
                     # Construct S3 "physical path" as: /bucket/objectname
@@ -466,20 +493,22 @@ class s3_scanner(scanner):
                     logger.info("succeeded", task=task, path=path)
                 else:
                     metafunc(meta2, logger)
-                    logger.info("succeeded_metadata_only", task=task, path=path)
+                    logger.info("succeeded_metadata_only",
+                                task=task, path=path)
                 sync_time_handle.set_value(str(t))
         except Exception as err:
             event_handler = custom_event_handler(meta)
             retry_countdown = event_handler.delay(task_cls.request.retries + 1)
-            raise task_cls.retry(max_retries=max_retries, exc=err, countdown=retry_countdown)
+            raise task_cls.retry(max_retries=max_retries,
+                                 exc=err, countdown=retry_countdown)
         finally:
             if lock is not None:
                 lock.release()
 
+
 def scanner_factory(meta):
-    # TODO: Look into passing a string as a type... modularize scanners and import as needed
-    # TODO: Talk to Dan about eval()
     if meta.get('s3_keypair'):
         return s3_scanner(meta)
     return filesystem_scanner(meta)
 
+from .sync_task import sync_files
