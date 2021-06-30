@@ -21,6 +21,7 @@ from billiard import current_process
 import base64
 import re
 
+
 class scanner(object):
     def __init__(self, meta):
         self.meta = meta.copy()
@@ -89,6 +90,7 @@ class filesystem_scanner(scanner):
             meta = meta.copy()
             meta["task"] = "sync_dir"
             chunk = {}
+
 # ----------------------
             #task_queue(file_q_name).add(sync_dir, meta)
             meta['queue_name'] = file_q_name
@@ -186,15 +188,6 @@ class filesystem_scanner(scanner):
         lock = None
         logger.info("synchronizing " + cls + ". path = " + path)
 
-        def is_unicode_encode_error_path(path):
-            # Attempt to encode full physical path on local filesystem
-            # Special handling required for non-encodable strings which raise UnicodeEncodeError
-            try:
-                _ = path.encode('utf8')
-            except UnicodeEncodeError:
-                return True
-            return False
-
         if is_unicode_encode_error_path(path):
             abspath = os.path.abspath(path)
             path = os.path.dirname(abspath)
@@ -248,7 +241,7 @@ class filesystem_scanner(scanner):
                     else:
                         target2 = target
                 else:
-                    # ----------------------
+# ----------------------
                     target2 = join(target, relpath(path, start=root))
 # ----------------------
                 meta2["target"] = target2
@@ -301,7 +294,6 @@ class s3_scanner(scanner):
             chunk = {}
 
 # ----------------------
-            # TODO: #64 - Need to somehow trigger sync_dir for folders without stat'ing for PEPs
             # instantiate s3 client
             proxy_url = meta.get('s3_proxy_url')
             if proxy_url is None:
@@ -415,15 +407,6 @@ class s3_scanner(scanner):
         lock = None
         logger.info("synchronizing " + cls + ". path = " + path)
 
-        def is_unicode_encode_error_path(path):
-            # Attempt to encode full physical path on local filesystem
-            # Special handling required for non-encodable strings which raise UnicodeEncodeError
-            try:
-                _ = path.encode('utf8')
-            except UnicodeEncodeError:
-                return True
-            return False
-
         if is_unicode_encode_error_path(path):
             abspath = os.path.abspath(path)
             path = os.path.dirname(abspath)
@@ -477,7 +460,7 @@ class s3_scanner(scanner):
                     else:
                         target2 = target
                 else:
-                    # ----------------------
+# ----------------------
                     # Strip prefix from S3 path
                     prefix = meta['s3_prefix']
                     reg_path = path[path.index(
@@ -505,10 +488,19 @@ class s3_scanner(scanner):
             if lock is not None:
                 lock.release()
 
+# Attempt to encode full physical path on local filesystem
+# Special handling required for non-encodable strings which raise UnicodeEncodeError
+def is_unicode_encode_error_path(path):
+    try:
+        _ = path.encode('utf8')
+    except UnicodeEncodeError:
+        return True
+    return False
 
 def scanner_factory(meta):
     if meta.get('s3_keypair'):
         return s3_scanner(meta)
     return filesystem_scanner(meta)
 
+#at bottom for circular dependency issues 
 from .sync_task import sync_files

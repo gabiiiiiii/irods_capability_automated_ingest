@@ -14,9 +14,6 @@ from .sync_job import sync_job
 from .sync_utils import app
 from .utils import enqueue_task
 from .task_queue import task_queue
-#from .scanner import scanner_factory
-#from .scanner import scanner
-#from . import scanner
 import traceback
 from celery.signals import task_prerun, task_postrun
 from billiard import current_process
@@ -163,6 +160,7 @@ def sync_dir(self, meta):
 
 @app.task(bind=True, base=IrodsTask)
 def sync_files(self, _meta):
+    #import here due to circular dependencies
     from .scanner import scanner_factory
     chunk = _meta["chunk"]
     meta = _meta.copy()
@@ -187,4 +185,5 @@ try:
 except ImportError:
     from scandir import scandir
 
+#at bottom for circular dependency issues 
 from . import scanner
