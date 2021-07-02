@@ -15,7 +15,6 @@ from .custom_event_handler import custom_event_handler
 from .redis_key import sync_time_key_handle
 from .sync_utils import get_redis
 from .utils import enqueue_task
-#from .task_queue import task_queue
 from minio import Minio
 from billiard import current_process
 import base64
@@ -71,19 +70,9 @@ class filesystem_scanner(scanner):
         super(filesystem_scanner, self).__init__(meta)
 
     def sync_path(self, task_cls, meta):
-        task = meta["task"]
-        path = meta["path"]
-        path_q_name = meta["path_queue"]
-        file_q_name = meta["file_queue"]
-        config = meta["config"]
-        logging_config = config["log"]
-        exclude_file_name = meta['exclude_file_name']
-        exclude_directory_name = meta['exclude_directory_name']
-
-        logger = sync_logging.get_sync_logger(logging_config)
-
-        file_regex = [re.compile(r) for r in exclude_file_name]
-        dir_regex = [re.compile(r) for r in exclude_directory_name]
+        #initalizing variables
+        (path, path_q_name, file_q_name, config, logging_config, exclude_file_name, 
+        exclude_directory_name, logger, file_regex, dir_regex) = set_sync_path_vars(meta)
 
         try:
             logger.info("walk dir", path=path)
@@ -92,7 +81,6 @@ class filesystem_scanner(scanner):
             chunk = {}
 
 # ----------------------
-            #task_queue(file_q_name).add(sync_dir, meta)
             meta['queue_name'] = file_q_name
             enqueue_task(sync_dir, meta)
             itr = scandir(path)
@@ -132,7 +120,6 @@ class filesystem_scanner(scanner):
                         follow_symlinks=False).st_mtime
                     sync_dir_meta['ctime'] = obj.stat(
                         follow_symlinks=False).st_ctime
-                    #task_queue(path_q_name).add(sync_path, sync_dir_meta)
                     sync_dir_meta['queue_name'] = path_q_name
                     enqueue_task(sync_path, sync_dir_meta)
                     continue
@@ -152,7 +139,6 @@ class filesystem_scanner(scanner):
                 if len(chunk) >= files_per_task:
                     sync_files_meta = meta.copy()
                     sync_files_meta['chunk'] = chunk
-                    #task_queue(file_q_name).add(sync_files, sync_files_meta)
                     sync_files_meta['queue_name'] = file_q_name
                     enqueue_task(sync_files, sync_files_meta)
                     chunk.clear()
@@ -160,7 +146,6 @@ class filesystem_scanner(scanner):
             if len(chunk) > 0:
                 sync_files_meta = meta.copy()
                 sync_files_meta['chunk'] = chunk
-                #task_queue(file_q_name).add(sync_files, sync_files_meta)
                 sync_files_meta['queue_name'] = file_q_name
                 enqueue_task(sync_files, sync_files_meta)
                 chunk.clear()
@@ -173,19 +158,10 @@ class filesystem_scanner(scanner):
                                  exc=err, countdown=retry_countdown)
 
     def sync_entry(self, task_cls, meta, cls, datafunc, metafunc):
-        task = meta["task"]
-        path = meta["path"]
-        root = meta["root"]
-        target = meta["target"]
-        config = meta["config"]
-        logging_config = config["log"]
-        ignore_cache = meta["ignore_cache"]
-        logger = sync_logging.get_sync_logger(logging_config)
-
-        event_handler = custom_event_handler(meta)
-        max_retries = event_handler.max_retries()
-
-        lock = None
+        #initalizing variables
+        (task, path, root, target, config, logging_config, 
+        ignore_cache, logger, event_handler, max_retries, lock) = set_sync_entry_vars(meta)
+        
         logger.info("synchronizing " + cls + ". path = " + path)
 
         if is_unicode_encode_error_path(path):
@@ -266,26 +242,15 @@ class filesystem_scanner(scanner):
 class s3_scanner(scanner):
     def __init__(self, meta):
         super(s3_scanner, self).__init__(meta)
-        #self.s3_keypair = meta.get('s3_keypair')
         self.proxy_url = meta.get('s3_proxy_url')
         self.endpoint_domain = meta.get('s3_endpoint_domain')
         self.s3_access_key = meta.get('s3_access_key')
         self.s3_secret_key = meta.get('s3_secret_key')
 
     def sync_path(self, task_cls, meta):
-        task = meta["task"]
-        path = meta["path"]
-        path_q_name = meta["path_queue"]
-        file_q_name = meta["file_queue"]
-        config = meta["config"]
-        logging_config = config["log"]
-        exclude_file_name = meta['exclude_file_name']
-        exclude_directory_name = meta['exclude_directory_name']
-
-        logger = sync_logging.get_sync_logger(logging_config)
-
-        file_regex = [re.compile(r) for r in exclude_file_name]
-        dir_regex = [re.compile(r) for r in exclude_directory_name]
+        #initalizing variables
+        (path, path_q_name, file_q_name, config, logging_config, exclude_file_name, 
+        exclude_directory_name, logger, file_regex, dir_regex) = set_sync_path_vars(meta)
 
         try:
             logger.info("walk dir", path=path)
@@ -371,7 +336,6 @@ class s3_scanner(scanner):
                 if len(chunk) >= files_per_task:
                     sync_files_meta = meta.copy()
                     sync_files_meta['chunk'] = chunk
-                    #task_queue(file_q_name).add(sync_files, sync_files_meta)
                     sync_files_meta['queue_name'] = file_q_name
                     enqueue_task(sync_files, sync_files_meta)
                     chunk.clear()
@@ -379,7 +343,6 @@ class s3_scanner(scanner):
             if len(chunk) > 0:
                 sync_files_meta = meta.copy()
                 sync_files_meta['chunk'] = chunk
-                #task_queue(file_q_name).add(sync_files, sync_files_meta)
                 sync_files_meta['queue_name'] = file_q_name
                 enqueue_task(sync_files, sync_files_meta)
                 chunk.clear()
@@ -392,19 +355,10 @@ class s3_scanner(scanner):
                                  exc=err, countdown=retry_countdown)
 
     def sync_entry(self, task_cls, meta, cls, datafunc, metafunc):
-        task = meta["task"]
-        path = meta["path"]
-        root = meta["root"]
-        target = meta["target"]
-        config = meta["config"]
-        logging_config = config["log"]
-        ignore_cache = meta["ignore_cache"]
-        logger = sync_logging.get_sync_logger(logging_config)
+        #initalizing variables
+        (task, path, root, target, config, logging_config, 
+        ignore_cache, logger, event_handler, max_retries, lock) = set_sync_entry_vars(meta)
 
-        event_handler = custom_event_handler(meta)
-        max_retries = event_handler.max_retries()
-
-        lock = None
         logger.info("synchronizing " + cls + ". path = " + path)
 
         if is_unicode_encode_error_path(path):
@@ -487,6 +441,41 @@ class s3_scanner(scanner):
         finally:
             if lock is not None:
                 lock.release()
+
+def set_sync_entry_vars(meta):
+    task = meta["task"]
+    path = meta["path"]
+    root = meta["root"]
+    target = meta["target"]
+    config = meta["config"]
+    logging_config = config["log"]
+    ignore_cache = meta["ignore_cache"]
+    logger = sync_logging.get_sync_logger(logging_config)
+
+    event_handler = custom_event_handler(meta)
+    max_retries = event_handler.max_retries()
+
+    lock = None
+
+    return (task, path, root, target, config, logging_config, 
+        ignore_cache, logger, event_handler, max_retries, lock)
+
+def set_sync_path_vars(meta):
+    path = meta["path"]
+    path_q_name = meta["path_queue"]
+    file_q_name = meta["file_queue"]
+    config = meta["config"]
+    logging_config = config["log"]
+    exclude_file_name = meta['exclude_file_name']
+    exclude_directory_name = meta['exclude_directory_name']
+
+    logger = sync_logging.get_sync_logger(logging_config)
+
+    file_regex = [re.compile(r) for r in exclude_file_name]
+    dir_regex = [re.compile(r) for r in exclude_directory_name]
+
+    return (path, path_q_name, file_q_name, config, logging_config, 
+        exclude_file_name, exclude_directory_name, logger, file_regex, dir_regex)
 
 # Attempt to encode full physical path on local filesystem
 # Special handling required for non-encodable strings which raise UnicodeEncodeError
