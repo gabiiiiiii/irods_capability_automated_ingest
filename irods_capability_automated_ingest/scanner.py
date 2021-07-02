@@ -161,25 +161,12 @@ class filesystem_scanner(scanner):
         #initalizing variables
         (task, path, root, target, config, logging_config, 
         ignore_cache, logger, event_handler, max_retries, lock) = set_sync_entry_vars(meta)
-        
+
         logger.info("synchronizing " + cls + ". path = " + path)
 
         if is_unicode_encode_error_path(path):
-            abspath = os.path.abspath(path)
-            path = os.path.dirname(abspath)
-            utf8_escaped_abspath = abspath.encode('utf8', 'surrogateescape')
-            b64_path_str = base64.b64encode(utf8_escaped_abspath)
-
-            unicode_error_filename = 'irods_UnicodeEncodeError_' + \
-                str(b64_path_str.decode('utf8'))
-
-            logger.warning(
-                'sync_entry raised UnicodeEncodeError while syncing path:' + str(utf8_escaped_abspath))
-
-            meta['path'] = path
-            meta['b64_path_str'] = b64_path_str
-            meta['unicode_error_filename'] = unicode_error_filename
-
+            #encodes to utf8 and logs warning
+            set_error_path(path)
             sync_key = str(b64_path_str.decode('utf8')) + ":" + target
         else:
             sync_key = path + ":" + target
@@ -362,21 +349,8 @@ class s3_scanner(scanner):
         logger.info("synchronizing " + cls + ". path = " + path)
 
         if is_unicode_encode_error_path(path):
-            abspath = os.path.abspath(path)
-            path = os.path.dirname(abspath)
-            utf8_escaped_abspath = abspath.encode('utf8', 'surrogateescape')
-            b64_path_str = base64.b64encode(utf8_escaped_abspath)
-
-            unicode_error_filename = 'irods_UnicodeEncodeError_' + \
-                str(b64_path_str.decode('utf8'))
-
-            logger.warning(
-                'sync_entry raised UnicodeEncodeError while syncing path:' + str(utf8_escaped_abspath))
-
-            meta['path'] = path
-            meta['b64_path_str'] = b64_path_str
-            meta['unicode_error_filename'] = unicode_error_filename
-
+            #encodes to utf8 and logs warning
+            set_error_path(path)
             sync_key = str(b64_path_str.decode('utf8')) + ":" + target
         else:
             sync_key = path + ":" + target
@@ -441,6 +415,21 @@ class s3_scanner(scanner):
         finally:
             if lock is not None:
                 lock.release()
+
+def set_error_path(path):
+    abspath = os.path.abspath(path)
+    path = os.path.dirname(abspath)
+    utf8_escaped_abspath = abspath.encode('utf8', 'surrogateescape')
+    b64_path_str = base64.b64encode(utf8_escaped_abspath)
+    unicode_error_filename = 'irods_UnicodeEncodeError_' + \
+                str(b64_path_str.decode('utf8'))
+
+    logger.warning(
+                'sync_entry raised UnicodeEncodeError while syncing path:' + str(utf8_escaped_abspath))
+
+    meta['path'] = path
+    meta['b64_path_str'] = b64_path_str
+    meta['unicode_error_filename'] = unicode_error_filename
 
 def set_sync_entry_vars(meta):
     task = meta["task"]
