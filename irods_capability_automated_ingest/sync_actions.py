@@ -118,7 +118,7 @@ def start_job(data):
         # set source
         src_abs = src_path
     else:
-        src_abs = realpath(root)
+        src_abs = realpath(src_path)
 
     data_copy["root"] = src_abs
     data_copy["path"] = src_abs
