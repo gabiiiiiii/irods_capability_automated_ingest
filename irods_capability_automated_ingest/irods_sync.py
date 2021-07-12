@@ -135,6 +135,9 @@ def main():
                               help='Target iRODS collection for data objects (created if non-existent).')
     parser_start.add_argument('-i', '--interval', action="store", type=int, default=None,
                               help='Restart interval (in seconds). If absent, will only sync once.')
+    parser_start.add_argument('--file_queue', action="store", type=str, default="file", help='Name for the file queue.')
+    parser_start.add_argument('--path_queue', action="store", type=str, default="path", help='Name for the path queue.')
+    parser_start.add_argument('--restart_queue', action="store", type=str, default="restart", help='Name for the restart queue.')
     parser_start.add_argument('--event_handler', action="store",
                               type=str, default=None, help='Path to event handler file')
     parser_start.add_argument('--job_name', action="store", type=str, default=None,
