@@ -1,0 +1,46 @@
+version: '3'
+
+services:
+  some-redis:
+    image: redis
+    hostname: redis
+    networks:
+      default:
+        aliases:
+          - redis
+
+  icat:
+    build:
+      context: icat
+      args:
+        postgres_password: testpassword
+    hostname: catalog.example.org
+    networks:
+      default:
+        aliases:
+          - catalog.example.org
+
+  irods-catalog-provider:
+    build:
+      context: provider
+    hostname: icat.example.org
+    volumes:
+      - "/tmp/mountdir:/tmp/testdir:ro"
+    networks:
+      default:
+        aliases:
+          - icat.example.org
+    depends_on:
+      - icat
+
+  ingest-test:
+    build:
+      context: test
+    environment:
+      - "PIP_PACKAGE=irods-capability-automated-ingest"
+      - "TEST_CASE=irods_capability_automated_ingest.test.test_irods_sync"
+    volumes:
+      - "/tmp/mountdir:/tmp/testdir"
+    depends_on:
+      - some-redis
+      - irods-catalog-provider
