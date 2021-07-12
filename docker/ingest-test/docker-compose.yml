@@ -24,12 +24,12 @@ services:
     build:
       context: provider
     hostname: icat.example.org
-    volumes:
-      - "/tmp/mountdir:/tmp/testdir:ro"
     networks:
       default:
         aliases:
           - icat.example.org
+    volumes:
+      - "/tmp/mountdir:/tmp/testdir:ro"
     depends_on:
       - icat
 
