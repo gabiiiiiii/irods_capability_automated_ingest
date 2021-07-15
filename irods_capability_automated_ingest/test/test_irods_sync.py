@@ -199,7 +199,7 @@ def read_file(path):
 
 
 def read_data_object(session, path, resc_name = DEFAULT_RESC):
-    with NamedTemporaryFile() as tf:
+    with NamedTemporaryFile(delete = False) as tf:
         session.data_objects.get(path, file=tf.name, forceFlag="", rescName = resc_name)
         tf.flush()
         #print(tf.open("r").read())
@@ -303,6 +303,10 @@ class automated_ingest_test_context(object):
             for i in listdir(PATH_TO_SOURCE_DIR):
                 path = join(PATH_TO_SOURCE_DIR, i)
                 rpath = PATH_TO_COLLECTION + "/" + i
+                print("start path")
+                print(path)
+                print(rpath)
+                print("end path")
                 self.assertTrue(session.data_objects.exists(rpath))
                 a1 = read_file(path)
 
