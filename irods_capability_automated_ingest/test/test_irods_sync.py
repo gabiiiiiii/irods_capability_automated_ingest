@@ -296,8 +296,8 @@ class automated_ingest_test_context(object):
         workers = start_workers(1)
         wait_for(workers, job_name)
         with iRODSSession(**get_kwargs()) as session:
-            session.data_objects.get("/tempZone/home/rods/a_remote/2", file="itss_thursday", forceFlag="", rescName = "demoResc")
-            print("ohno thursday ", read_file("itss_thursday"), "stuff after")
+            session.data_objects.get("/tempZone/home/rods/a_remote/2", file="/tmp/itss_thursday", forceFlag="", rescName = "demoResc")
+            print("ohno thursday ", read_file("/tmp/itss_thursday"), "stuff after")
         self.do_assert_register(resc_names)
 
     def do_assert_register(self, resc_names):
