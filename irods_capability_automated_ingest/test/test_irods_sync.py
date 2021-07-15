@@ -278,12 +278,13 @@ class automated_ingest_test_context(object):
         self.logfile = NamedTemporaryFile()
 
     def tearDown(self):
-        delete_files()
-        clear_redis()
-        delete_collection_if_exists(PATH_TO_COLLECTION)
-        irmtrash()
-        with iRODSSession(**get_kwargs()) as session:
-            delete_resources(session, HIERARCHY1)
+        #delete_files()
+        #clear_redis()
+        #delete_collection_if_exists(PATH_TO_COLLECTION)
+        #irmtrash()
+        #with iRODSSession(**get_kwargs()) as session:
+        #    delete_resources(session, HIERARCHY1)
+        pass
 
     # utilities
     def do_register(self, eh, job_name = DEFAULT_JOB_NAME, resc_name = [DEFAULT_RESC]):
