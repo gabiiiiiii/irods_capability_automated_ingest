@@ -199,10 +199,8 @@ def read_file(path):
 
 
 def read_data_object(session, path, resc_name = DEFAULT_RESC):
-    with NamedTemporaryFile(delete = False) as tf:
-        session.data_objects.get(path, file=tf.name, forceFlag="", rescName = resc_name)
-        tf.flush()
-        #print(tf.open("r").read())
+    with NamedTemporaryFile() as tf:
+        session.data_objects.get(path, tf.name, forceFlag="", rescName = resc_name)
         return read_file(tf.name)
 
 
@@ -278,13 +276,12 @@ class automated_ingest_test_context(object):
         self.logfile = NamedTemporaryFile()
 
     def tearDown(self):
-        #delete_files()
-        #clear_redis()
-        #delete_collection_if_exists(PATH_TO_COLLECTION)
-        #irmtrash()
-        #with iRODSSession(**get_kwargs()) as session:
-        #    delete_resources(session, HIERARCHY1)
-        pass
+        delete_files()
+        clear_redis()
+        delete_collection_if_exists(PATH_TO_COLLECTION)
+        irmtrash()
+        with iRODSSession(**get_kwargs()) as session:
+            delete_resources(session, HIERARCHY1)
 
     # utilities
     def do_register(self, eh, job_name = DEFAULT_JOB_NAME, resc_name = [DEFAULT_RESC]):
@@ -295,9 +292,6 @@ class automated_ingest_test_context(object):
     def do_register2(self, job_name = DEFAULT_JOB_NAME, resc_names=[DEFAULT_RESC]):
         workers = start_workers(1)
         wait_for(workers, job_name)
-        with iRODSSession(**get_kwargs()) as session:
-            session.data_objects.get("/tempZone/home/rods/a_remote/2", file="/tmp/itss_thursday", forceFlag="", rescName = "demoResc")
-            print("ohno thursday ", read_file("/tmp/itss_thursday"), "stuff after")
         self.do_assert_register(resc_names)
 
     def do_assert_register(self, resc_names):
@@ -306,10 +300,6 @@ class automated_ingest_test_context(object):
             for i in listdir(PATH_TO_SOURCE_DIR):
                 path = join(PATH_TO_SOURCE_DIR, i)
                 rpath = PATH_TO_COLLECTION + "/" + i
-                print("start path")
-                print(path)
-                print(rpath)
-                print("end path")
                 self.assertTrue(session.data_objects.exists(rpath))
                 a1 = read_file(path)
 
