@@ -9,21 +9,28 @@ class custom_event_handler(object):
         key = 'event_handler'
         h = self.meta.get(key)
         if h is None:
-            return None
+            return (None, None) if rtn_mod_and_class else None
+
         mod = importlib.import_module(h)
+        if mod is None:
+            return (None, None) if rtn_mod_and_class else None
+
         cls = getattr(mod, key, None)
-        if rtn_mod_and_class : return (mod,cls)
-        else: return cls
+        if rtn_mod_and_class:
+            return (mod,cls)
+
+        return cls
 
     def hasattr(self, attr):
         module = self.get_module()
         return module is not None and hasattr(module, attr)
 
     def call(self, hdlr, logger, func, *args, **options):
-        (mod,cls) = self.get_module(rtn_mod_and_class = True)  # - just because hdlr_mod is 1st param for the method signature
+        (mod,cls) = self.get_module(rtn_mod_and_class=True)
+        args = (mod,) + tuple(args)
+
         if self.hasattr(hdlr):
             logger.debug("calling [" + hdlr + "] in event handler: args = " + str(args) + ", options = " + str(options))
-            args = (mod,) + tuple(args)
             getattr(cls, hdlr)(func, *args, **options)
         else:
             func(*args, **options)
@@ -31,24 +38,29 @@ class custom_event_handler(object):
     # attribute getters
     def max_retries(self):
         if self.hasattr('max_retries'):
-            return self.get_module().max_retries(module, self.logger, self.meta)
+            module = self.get_module()
+            return module.max_retries(module, self.logger, self.meta)
         return 0
 
     def timeout(self):
         if self.hasattr('timeout'):
-            return self.get_module().timeout(module, self.logger, self.meta)
+            module = self.get_module()
+            return module.timeout(module, self.logger, self.meta)
         return 3600
 
     def delay(self, retries):
         if self.hasattr('delay'):
-            return self.get_module().delay(module, self.logger, self.meta, retries)
+            module = self.get_module()
+            return module.delay(module, self.logger, self.meta, retries)
         return 0
 
     def operation(self, session, **options):
         if self.hasattr("operation"):
             return self.get_module().operation(session, self.meta, **options)
-        #return Operation.REGISTER_SYNC
-        return None
+
+        from .utils import Operation
+        return Operation.REGISTER_SYNC
+        #return None
 
     def to_resource(self, session, **options):
         if self.hasattr("to_resource"):
