@@ -5,22 +5,26 @@ class custom_event_handler(object):
         self.meta = meta.copy()
         self.logger = self.meta['config']['log']
 
-    def get_module(self):
+    def get_module(self, rtn_mod_and_class = False):   # get_ev_handler_class or something
         key = 'event_handler'
         h = self.meta.get(key)
         if h is None:
             return None
-        return getattr(importlib.import_module(h), key, None)
+        mod = importlib.import_module(h)
+        cls = getattr(mod, key, None)
+        if rtn_mod_and_class : return (mod,cls)
+        else: return cls
 
     def hasattr(self, attr):
         module = self.get_module()
         return module is not None and hasattr(module, attr)
 
     def call(self, hdlr, logger, func, *args, **options):
-        module = self.get_module()
+        (mod,cls) = self.get_module(rtn_mod_and_class = True)  # - just because hdlr_mod is 1st param for the method signature
         if self.hasattr(hdlr):
             logger.debug("calling [" + hdlr + "] in event handler: args = " + str(args) + ", options = " + str(options))
-            getattr(module, hdlr)(func, *args, **options)
+            args = (mod,) + tuple(args)
+            getattr(cls, hdlr)(func, *args, **options)
         else:
             func(*args, **options)
 

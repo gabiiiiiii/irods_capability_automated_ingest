@@ -164,7 +164,7 @@ def sync_file(logger, session, meta, **options):
         source_physical_fullpath = base64.b64decode(b64_path_str)
 
     logger.info("syncing object " + dest_dataobj_logical_fullpath + ", options = " + str(options))
-    op = event_handler.operation(session, meta, **options)
+    op = event_handler.operation(session, **options)
 
     if op == Operation.PUT_APPEND:
         BUFFER_SIZE = 1024
