@@ -301,7 +301,7 @@ def s3_split_path(self, task_cls, meta):
 
 def s3_file_path(self, task_cls, meta):
     if obj.object_name.endswith('/'):
-        continue
+        return
     full_path = obj.object_name
     obj_stats['is_link'] = False
     obj_stats['is_socket'] = False
@@ -314,12 +314,12 @@ def file_system_path(self, task_cls, meta):
     mode = obj.stat(follow_symlinks=False).st_mode
 
     if self.exclude_file_type(dir_regex, file_regex, full_path, logger, mode):
-        continue
+        pass
 
     if not obj.is_symlink() and not bool(mode & stat.S_IRGRP):
         logger.error(
             'physical path is not readable [{0}]'.format(full_path))
-        continue
+        pass
 
     if obj.is_dir() and not obj.is_symlink() and not obj.is_file():
         sync_dir_meta = meta.copy()
@@ -330,7 +330,7 @@ def file_system_path(self, task_cls, meta):
             follow_symlinks=False).st_ctime
         sync_dir_meta['queue_name'] = meta["path_queue"]
         enqueue_task(sync_path, sync_dir_meta)
-        continue
+        pass
 
     obj_stats['is_link'] = obj.is_symlink()
     obj_stats['is_socket'] = stat.S_ISSOCK(mode)
