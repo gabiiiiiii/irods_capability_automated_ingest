@@ -368,10 +368,5 @@ def is_unicode_encode_error_path(path):
         return True
     return False
 
-def scanner_factory(meta):
-    if meta.get('s3_keypair'):
-        return s3_scanner(meta)
-    return filesystem_scanner(meta)
-
 # at bottom for circular dependency issues 
 from .sync_task import sync_files, sync_dir, sync_path
