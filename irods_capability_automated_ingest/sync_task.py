@@ -147,13 +147,13 @@ def restart(meta):
 
 @app.task(bind=True, base=IrodsTask)
 def sync_path(self, meta):
-    syncer = scanner.scanner(meta)
+    syncer = scanner.scanner_factory(meta)
     syncer.sync_path(self, meta)
 
 
 @app.task(bind=True, base=IrodsTask)
 def sync_dir(self, meta):
-    syncer = scanner.scanner(meta)
+    syncer = scanner.scanner_factory(meta)
     syncer.sync_entry(self, meta, "dir", sync_irods.sync_data_from_dir,
                       sync_irods.sync_metadata_from_dir)
 
@@ -161,7 +161,7 @@ def sync_dir(self, meta):
 @app.task(bind=True, base=IrodsTask)
 def sync_files(self, _meta):
     #import here due to circular dependencies
-    from .scanner import scanner
+    from .scanner import scanner_factory
     chunk = _meta["chunk"]
     meta = _meta.copy()
     for path, obj_stats in chunk.items():
@@ -173,7 +173,7 @@ def sync_files(self, _meta):
         meta["ctime"] = obj_stats.get('ctime')
         meta["size"] = obj_stats.get('size')
         meta['task'] = 'sync_file'
-        syncer = scanner(meta)
+        syncer = scanner_factory(meta)
         syncer.sync_entry(self, meta, "file", sync_irods.sync_data_from_file,
                           sync_irods.sync_metadata_from_file)
 
