@@ -51,7 +51,7 @@ class scanner(object):
         except FileNotFoundError:
             return False
 
-        #TODO
+        # TODO
         if stat.S_ISREG(mode):
             if 'regular' in ex_list or file_match:
                 ret_val = True
@@ -106,7 +106,7 @@ class filesystem_scanner(scanner):
 # ----------------------
 
             if meta["profile"]:
-                #config = meta["config"]
+                # config = meta["config"]
                 profile_log = config.get("profile")
                 profile_logger = sync_logging.get_sync_logger(profile_log)
                 task_id = task_cls.request.id
@@ -173,29 +173,29 @@ class filesystem_scanner(scanner):
             event_handler = custom_event_handler(meta)
             retry_countdown = event_handler.delay(task_cls.request.retries + 1)
             max_retries = event_handler.max_retries()
-                                 exc=err, countdown=retry_countdown)
+                                 exc = err, countdown = retry_countdown)
 
     def sync_entry(self, task_cls, meta, cls, datafunc, metafunc):
-        path = meta["path"]
-        target = meta["target"]
-        config = meta["config"]
-        logging_config = config["log"]
-        logger = sync_logging.get_sync_logger(logging_config)
+        path=meta["path"]
+        target=meta["target"]
+        config=meta["config"]
+        logging_config=config["log"]
+        logger=sync_logging.get_sync_logger(logging_config)
 
-        event_handler = custom_event_handler(meta)
-        max_retries = event_handler.max_retries()
+        event_handler=custom_event_handler(meta)
+        max_retries=event_handler.max_retries()
 
-        lock = None
+        lock=None
 
         logger.info("synchronizing " + cls + ". path = " + path)
 
         if is_unicode_encode_error_path(path):
-            #encodes to utf8 and logs warning
-            abspath = os.path.abspath(path)
-            path = os.path.dirname(abspath)
-            utf8_escaped_abspath = abspath.encode('utf8', 'surrogateescape')
-            b64_path_str = base64.b64encode(utf8_escaped_abspath)
-            unicode_error_filename = 'irods_UnicodeEncodeError_' + \
+            # encodes to utf8 and logs warning
+            abspath=os.path.abspath(path)
+            path=os.path.dirname(abspath)
+            utf8_escaped_abspath=abspath.encode('utf8', 'surrogateescape')
+            b64_path_str=base64.b64encode(utf8_escaped_abspath)
+            unicode_error_filename='irods_UnicodeEncodeError_' + \
                         str(b64_path_str.decode('utf8'))
 
             logger.warning(
@@ -364,7 +364,7 @@ class s3_scanner(scanner):
                 # Launch async job when enough objects are ready to be sync'd
                 files_per_task = meta.get('files_per_task')
 
-                #TODO: simplify
+                # TODO: simplify
                 if len(chunk) >= files_per_task:
                     sync_files_meta = meta.copy()
                     sync_files_meta['chunk'] = chunk
@@ -401,7 +401,7 @@ class s3_scanner(scanner):
         logger.info("synchronizing " + cls + ". path = " + path)
 
         if is_unicode_encode_error_path(path):
-            #encodes to utf8 and logs warning
+            # encodes to utf8 and logs warning
             abspath = os.path.abspath(path)
             path = os.path.dirname(abspath)
             utf8_escaped_abspath = abspath.encode('utf8', 'surrogateescape')
@@ -496,5 +496,5 @@ def scanner_factory(meta):
         return s3_scanner(meta)
     return filesystem_scanner(meta)
 
-#at bottom for circular dependency issues 
+# at bottom for circular dependency issues 
 from .sync_task import sync_files, sync_dir, sync_path
