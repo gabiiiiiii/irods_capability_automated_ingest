@@ -173,7 +173,7 @@ class filesystem_scanner(scanner):
             event_handler = custom_event_handler(meta)
             retry_countdown = event_handler.delay(task_cls.request.retries + 1)
             max_retries = event_handler.max_retries()
-                                 exc = err, countdown = retry_countdown)
+            exc = err, countdown = retry_countdown()
 
     def sync_entry(self, task_cls, meta, cls, datafunc, metafunc):
         path=meta["path"]
