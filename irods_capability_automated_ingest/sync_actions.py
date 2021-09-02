@@ -1,15 +1,17 @@
 from . import sync_logging, sync_irods
+from .sync_task import restart
 from .sync_job import sync_job
 from .sync_utils import get_redis
-from .sync_task import restart
 from .redis_key import redis_key_handle
 from os.path import realpath
 from uuid import uuid1
+import uuid
 import json
 import progressbar
 import redis_lock
 import time
 
+uuid_ = uuid.uuid4().hex
 
 def stop_job(job_name, config):
     logger = sync_logging.get_sync_logger(config["log"])
@@ -143,8 +145,11 @@ def start_job(data):
             #print("EHP" + str(event_handler_path))
             with open(event_handler, "r") as f:
                 content_string = f.read()
-            event_handler_key = redis_key_handle(r, "custom_event_handler", job.name())
+
+            uuid_ = uuid.uuid4().hex
+            event_handler_key = redis_key_handle(r, "custom_event_handler", job.name() + '::' + uuid_)
             event_handler_key.set_value(content_string)
+            data_copy["event_handler_key"] = event_handler_key.get_key()
 
             cleanup_list = []
         job.cleanup_handle().set_value(json.dumps(cleanup_list))
