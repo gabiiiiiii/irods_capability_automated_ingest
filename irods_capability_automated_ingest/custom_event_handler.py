@@ -3,6 +3,13 @@ import sys
 from .redis_key import redis_key_handle
 from .sync_utils import get_redis
 import os.path
+import mmap
+
+class X(object):
+    def __del__(self):
+        print (self, 'is going away')
+
+x = X() 
 
 class custom_event_handler(object):
     def __init__(self, meta):
@@ -19,17 +26,21 @@ class custom_event_handler(object):
         event_handler_split = event_handler_key_str.split(':/')
 
         event_handler_key = redis_key_handle(r, event_handler_split[0], event_handler_split[1])
-        content_string = event_handler_key.get_value()
 
         event_handler_str = event_handler_key.get_key().split('::')
         uuid_ = event_handler_str[1]
 
-        eh_file_name = "event_handler" + job_name + uuid_
-        eh_path = "/tmp/" + eh_file_name + ".py"
+        eh_file_name = "event_handler_" + job_name + "_" + uuid_
+        #eh_path = "/tmp/" + eh_file_name + ".py"
 
-        if not (os.path.isfile(eh_path)):
-            with open(eh_path, "w") as eh:
-                eh.write(content_string.decode("utf-8"))
+        if not (os.path.isfile(eh_file_name)):
+            content_string = event_handler_key.get_value()
+
+            #switch to shared mem
+            with open(eh_file_name, mode="w") as eh:
+                #eh.write(content_string.decode("utf-8"))
+                with mmap.mmap(eh.fileno(), length=0, access=mmap.ACCESS_WRITE) as mmap_obj:
+                    mmmap_obj.write(content_string.decode("utf-8"))
 
         sys.path.insert(0, '/tmp')
         mod = importlib.import_module(eh_file_name)
