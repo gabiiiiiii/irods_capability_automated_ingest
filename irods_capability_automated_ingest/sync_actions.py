@@ -1,5 +1,6 @@
 from . import sync_logging, sync_irods
 from .sync_job import sync_job
+from .utils import Operation
 from .sync_utils import get_redis
 from .sync_task import restart
 from .redis_key import redis_key_handle
