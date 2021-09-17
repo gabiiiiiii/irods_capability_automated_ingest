@@ -9,7 +9,7 @@ import json
 import progressbar
 import redis_lock
 import time
-
+import textwrap
 
 def stop_job(job_name, config):
     logger = sync_logging.get_sync_logger(config["log"])
