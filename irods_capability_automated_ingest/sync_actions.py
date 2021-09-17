@@ -143,6 +143,8 @@ def start_job(data):
         elif event_handler is None:
             event_handler_key = redis_key_handle(r, "custom_event_handler", job.name())
             event_handler_key.set_value(str(Operation.REGISTER_SYNC))
+            
+            cleanup_list = []
         else:
             #print("EHP" + str(event_handler_path))
             with open(event_handler, "r") as f:
