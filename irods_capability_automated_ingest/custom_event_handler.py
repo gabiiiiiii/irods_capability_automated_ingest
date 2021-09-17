@@ -2,6 +2,7 @@ import importlib
 import sys
 from .redis_key import redis_key_handle
 from .sync_utils import get_redis
+from .utils import Operation
 
 class custom_event_handler(object):
     def __init__(self, meta):
