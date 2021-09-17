@@ -1,6 +1,5 @@
 from . import sync_logging, sync_irods
 from .sync_job import sync_job
-from .utils import Operation
 from .sync_utils import get_redis
 from .sync_task import restart
 from .redis_key import redis_key_handle
@@ -142,8 +141,15 @@ def start_job(data):
             data["event_handler"] = event_handler
         elif event_handler is None:
             event_handler_key = redis_key_handle(r, "custom_event_handler", job.name())
-            event_handler_key.set_value(str(Operation.REGISTER_SYNC))
-            
+            content_string = textwrap.dedent("""
+            from irods_capability_automated_ingest.core import Core 
+            from irods_capability_automated_ingest.utils import Operation
+            class event_handler(Core):
+                @staticmethod
+                def operation(session, meta, **options):
+                    return Operation.REGISTER_SYNC""")
+            event_handler_key.set_value(content_string)
+
             cleanup_list = []
         else:
             #print("EHP" + str(event_handler_path))
