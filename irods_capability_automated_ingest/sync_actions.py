@@ -153,6 +153,7 @@ def start_job(data):
                 def operation(session, meta, **options):
                     return Operation.REGISTER_SYNC""")
             event_handler_key.set_value(content_string)
+            data_copy["event_handler_key"] = event_handler_key.get_key()
 
             cleanup_list = []
         else:
