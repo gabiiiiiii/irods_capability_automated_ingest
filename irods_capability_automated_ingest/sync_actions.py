@@ -144,7 +144,8 @@ def start_job(data):
             data["event_handler"] = event_handler
         elif event_handler is None:
             uuid_ = uuid.uuid4().hex
-            event_handler_key = redis_key_handle(r, "custom_event_handler", job.name() + '::' + uuid_)            content_string = textwrap.dedent("""
+            event_handler_key = redis_key_handle(r, "custom_event_handler", job.name() + '::' + uuid_)            
+            content_string = textwrap.dedent("""
             from irods_capability_automated_ingest.core import Core 
             from irods_capability_automated_ingest.utils import Operation
             class event_handler(Core):
@@ -152,7 +153,7 @@ def start_job(data):
                 def operation(session, meta, **options):
                     return Operation.REGISTER_SYNC""")
             event_handler_key.set_value(content_string)
-            
+
             cleanup_list = []
         else:
             #print("EHP" + str(event_handler_path))
